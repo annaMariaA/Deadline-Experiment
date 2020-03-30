@@ -58,4 +58,4 @@ person, deadline, block, trialNum, trialType, targetPresent, targTheta, targLocX
 11, 0, 2, , half, a, 7.853982e-01, NaN, NaN, NaN, , 5.994
 11, 0, 2, , half, a, 7.853982e-01, NaN, NaN, NaN, , 5.016
 11, 0, 2, , half, p, 7.853982e-01, 23, , 2.094395e+00, -1.000, 3.305674e+00
-11, 0, 2, , half, p, 7.853982e-01, 3, , 2.094395e+00, 1.000, 1.943145e+00, 
+11, 0, 2, , half, p, 7.853982e-01, 3, , 2.094395e+00, 1.000, 1.943145e+00
