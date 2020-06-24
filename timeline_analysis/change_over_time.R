@@ -55,23 +55,130 @@ reward_dat %>%
 		t = "trialNum", 
 		n = "fixNum",
 		side) %>%
-	mutate(subject = paste("r", subject, sep = "-")) %>%
+	mutate(
+	  subject = paste("r", subject, sep = "-"),
+	  condition = if_else(block == " 1", "flat", condition)) %>%
 	bind_rows(deadline_dat) %>%
 	filter(n > 1, n < 8) %>%
 	mutate(
 		n = as.factor(n),
 		condition = as_factor(condition),
 		condition = fct_recode(condition, 
-			reward = "r", flat = "f", untimed = "U", timed = "T"),
+		                       reward = "r", flat = "f", untimed = "U", timed = "T"),
 		hetero_fix = as.numeric(side == "hetero"),
 		block = as_factor(block),
 		block = fct_recode(block, "block 1" = " 1", "block 2" = " 2"),
-		t = if_else(block == "block 2", t + 96, t)) %>%
+		t = if_else(block == "block 2", t + 96, t),
+		t = scale(t, center = FALSE)) %>%
 	select(-side) -> dat_m
 
-		
+
+t_scale <- attributes(dat_m$t)$`scaled:scale`
+
 dat_agg <- dat_m %>% group_by(block, condition, t, n) %>%
 	summarise(mean_hetero_fix = mean(hetero_fix))
+
+## Rolling mean calculation
+source("prop_rolling_mean.R")
+
+ggplot(
+	rolling_fix_prop, 
+	aes(
+		x = t, 
+		y = prop_fix, 
+		colour = condition, 
+		group = interaction(block, condition))) +
+	geom_path(alpha = 0.5) + 
+	facet_grid(. ~ n) +
+	geom_vline(xintercept = 97, size = 1, colour = "darkgrey") +
+	geom_hline(yintercept = 0.5, linetype = 2) +
+	theme_bw() +
+	scale_x_continuous("trial", breaks = c(1, 97), expand = c(0, 0)) +
+	scale_y_continuous("prop. fixations", breaks = c(0, 0.5, 1), limits = c(0, 1), expand = c(0, 0))
+ggsave("scratch/empirical_rolling_mean.png", width = 10, height = 2)		
+
+## Function to plot model predictions
+
+plot_model_predictions <- function(df = dat_m, my_model, rfp = rolling_fix_prop) 
+{
+	df %>% modelr::data_grid(condition, block, t, n) %>% 
+		filter(
+			!(t > 96/t_scale & block == "block 1"),
+			!(t <=  96/t_scale & block == "block 2"),
+			!(t <= 96/t_scale & condition == "reward")) %>%
+		add_fitted_draws(my_model, re_formula = NA) %>%
+		ggplot(
+			aes(
+				x = t*t_scale, y = .value, 
+				colour = condition, fill = condition)) +
+		geom_hline(yintercept = 0.5, linetype = 2) +	
+		stat_lineribbon(aes(y = .value), .width = c(0.90, 0.75, .50), alpha = 1/4, size =0.5) +
+		facet_grid(condition ~ n) + 
+		geom_vline(xintercept = c(96, 97), size = 1, colour = "darkgrey") +
+		geom_path(
+			data = rfp, 
+			aes(x = t, y = prop_fix, group = block), 
+			alpha = 0.33) +
+		scale_fill_brewer(name = "condition", palette = "Set2",) + 
+	  	scale_color_brewer(name = "condition", palette = "Dark2") + 
+	  	scale_x_continuous("trial", breaks = seq(1, 192, 48)) +
+	  	scale_y_continuous("prop. fix. hetero", breaks = seq(0, 1, 0.1)) +
+	  	coord_cartesian(ylim = c(0, 1)) + 
+	  	theme_tidybayes() + 
+	  	theme(
+	  		legend.position= "bottom", 
+	  		legend.box.background = element_rect(size=1))
+}
+
+## Define priors
+model_priors <- get_prior(
+	data = dat_m,
+	hetero_fix ~  condition*block*t*n + (n | subject),
+	family = "bernoulli")	
+
+model_priors <- c(
+	prior(normal(0, 0.5), class = "Intercept"),
+	prior(normal(0, 1.0), class = "b"))
+
+# prior predictions
+m_prior <- brm(
+	data = dat_m,
+	hetero_fix ~ condition*block*t*n + (n | subject),
+	family = "bernoulli",
+	sample_prior = "only",
+	prior = model_priors,
+	chains = 1)
+saveRDS(m_prior, "models/my_prior.model")
+
+plot_model_predictions(dat_m, m_prior, rolling_fix_prop)
+ggsave("scratch/prior_predictions.png")
+ggsave("scratch/prior_predictions.pdf")
+rm(m_prior)
+
+## Fit model to data and plot posterior predictions
+m_full <- brm(
+	data = dat_m,
+	hetero_fix ~ condition*block*t*n + (n | subject),
+	family = "bernoulli",
+	prior = model_priors,
+	chains = 1)
+m_full <- add_criterion(m_full, c("loo", "waic"))
+saveRDS(m_full, "models/my_full.model")
+
+plot_model_predictions(dat_m, m_full, rolling_fix_prop)
+ggsave("scratch/posterior_predictions_full.png")
+ggsave("scratch/posterior_predictions_full.pdf")
+
+
+m_full_drop4 <- brm(
+	data = dat_m,
+	hetero_fix ~ condition*block*t*n - condition:block:t:n + (n | subject),
+	family = "bernoulli",
+	prior = model_priors,
+	chains = 1)
+m_full_drop4 <- add_criterion(m_full_drop4, c("loo", "waic"))
+saveRDS(m_full, "models/my_full.model")
+
 
 
 # m_trial <- brm(
@@ -81,103 +188,71 @@ dat_agg <- dat_m %>% group_by(block, condition, t, n) %>%
 # m_trial <- add_criterion(m_trial, c("loo", "waic"))
 # saveRDS(m_trial, "my_trial.model")
 
-m_block_trial <- brm(
-	data = dat_m,
-	hetero_fix ~ block * t * n + (n | subject), 
-	family = "bernoulli",
-	cores = 4)
-m_block_trial <- add_criterion(m_block_trial, c("loo", "waic"))
-
-# m_deadline <- brm(
+# m_block_trial <- brm(
 # 	data = dat_m,
-# 	hetero_fix ~ deadline + block * t * n + (n | subject), 
-# 	family = "bernoulli")
-# m_deadline <- add_criterion(m_deadline, c("loo", "waic"))
-# 
-# m_full <- brm(
+# 	hetero_fix ~ block * t * n + (n | subject), 
+# 	family = "bernoulli",
+# 	cores = 4)
+# m_block_trial <- add_criterion(m_block_trial, c("loo", "waic"))
+# saveRDS(m_trial, "my_bock_trial.model")
+
+# m_no4 <- brm(
 # 	data = dat_m,
-# 	hetero_fix ~ condition * block * t * n + (n | subject), 
-# 	family = "bernoulli")
-# m_full <- add_criterion(m_full, c("loo", "waic"))
-#  
-# saveRDS(m_full, "my.model")
-# m_full <- readRDS("my.model")
+# 	hetero_fix ~ condition * block * t * n - condition:block:t:n + (n | subject),
+# 	family = "bernoulli",
+# 	sample_prior = "only")
+# m_no4 <- add_criterion(m_no4, c("loo", "waic"))
 
-# m_deadline3 <- brm(
-# 	data = dat_m,
-# 	hetero_fix ~ deadline * block * t * n - deadline:block:t:n + (n | subject), 
-# 	family = "bernoulli")
-# m_deadline3 <- add_criterion(m_deadline3, c("loo", "waic"))
-
-# mw <- model_weights(m_deadline2, m_deadline3, m_deadline, m_block_trial, m_block, m_trial)
-
-windowed_mean <- function(df, blk, dl, nf, ws) {
-	x <- filter(df, block == blk, condition == cd, n == nf)$mean_hetero_fix
-	return(roll_mean(x , ws, align = "center"))
-}
-
-rolling_fix_prop <- tibble(
-	block = as.character(), 
-	condition = as.character(),
-	t = as.numeric(),
-	n = as.numeric(), 
-	prop_fix = as.numeric())
-
-ws <- 7
-
-for (n in 2:8) {
-	for (blk in c("block 1", "block 2")) {
-		for (cd in levels(dat_m$condition)) {
-
-			wf <- windowed_mean(dat_agg, blk, cd, n, ws)
-
-			rolling_fix_prop %>% bind_rows(
-				tibble(
-					block = blk, 
-					condition = cd, 
-					t = 1:length(wf) + (ws+1)/2,
-					n = n, 
-					prop_fix = wf)) -> rolling_fix_prop
-		}
-	}
-}
-
-rolling_fix_prop %>% mutate(
-	t = if_else(block == "block 2", t = t + 96, t)) -> rolling_fix_prop
-
-dat_m %>% 
-	group_by(block) %>%
-	modelr::data_grid(condition, n, t) %>%
-	# mutate(n = fct_rev(n)) %>%
-	add_fitted_draws(m_trial, re_formula = NA) %>%
-	ggplot(
-		aes(
-			x = t, y = .value, 
-			colour = condition, fill = condition)) +
-	geom_hline(yintercept = 0.5, linetype = 2) +	
-	stat_lineribbon(aes(y = .value), .width = c(0.90, 0.75, .50), alpha = 1/4) +
-	facet_grid(. ~ n) + 
-	geom_vline(xintercept = c(96, 97), size = 1, colour = "grey") +
-	scale_fill_brewer(name = "deadline", palette = "Set2",) + 
-  	scale_color_brewer(name = "deadline", palette = "Dark2") + 
-  	scale_x_continuous("trial", breaks = seq(1, 192, 24)) +
-  	scale_y_continuous("prop. fix. hetero", breaks = seq(0, 1, 0.1)) +
-  	coord_cartesian(ylim = c(0.1, 0.9)) + 
-  	theme_tidybayes() + 
-  	theme(
-  		legend.justification=c(1,0), 
-  		legend.position=c(1,0), 
-  		legend.box.background = element_rect(size=1)) +
-   # geom_point(data = rolling_fix_prop, aes(y = prop_fix), alpha = 0.25) +
-   geom_path(data = rolling_fix_prop, aes(y = prop_fix), alpha = 0.33) +
-ggsave("scratch/strat_over_trials.png", width = 12, height = 5)
+# saveRDS(m_no4, "my_no4.model")
+# m_no4 <- readRDS("my_no4.model")
 
 
-# get_variables(m)
-# m %>% gather_draws(b_trial,  `b_trial:n3`, `b_trial:n4`, `b_trial:n5`) %>%
-# 	ggplot(aes(x = .value, fill = .variable)) + geom_density(alpha = 0.33)
+# m_full <- readRDS("my_full.model")
 
-# dat_p$p <- predict(m, dat_p)[, 1]
+# # m_deadline3 <- brm(
+# # 	data = dat_m,
+# # 	hetero_fix ~ deadline * block * t * n - deadline:block:t:n + (n | subject), 
+# # 	family = "bernoulli")
+# # m_deadline3 <- add_criterion(m_deadline3, c("loo", "waic"))
+
+# # mw <- model_weights(m_deadline2, m_deadline3, m_deadline, m_block_trial, m_block, m_trial)
+
+# dat_m %>% 
+# 	group_by(block) %>%
+# 	modelr::data_grid(condition, n, t) %>%
+# 	filter(!(block == "block 1" & condition =="reward")) %>%
+# 	# mutate(n = fct_rev(n)) %>%
+# 	add_fitted_draws(m_full, re_formula = NA) %>%
+# 	ggplot(
+# 		aes(
+# 			x = t, y = .value, 
+# 			colour = condition, fill = condition)) +
+# 	geom_hline(yintercept = 0.5, linetype = 2) +	
+# 	stat_lineribbon(aes(y = .value), .width = c(0.90, 0.75, .50), alpha = 1/4, size =0.5) +
+# 	facet_wrap(. ~ n, nrow = 2) + 
+# 	geom_vline(xintercept = c(96, 97), size = 1, colour = "darkgrey") +
+# 	scale_fill_brewer(name = "condition", palette = "Set2",) + 
+#   	scale_color_brewer(name = "condition", palette = "Dark2") + 
+#   	scale_x_continuous("trial", breaks = seq(1, 192, 48)) +
+#   	scale_y_continuous("prop. fix. hetero", breaks = seq(0, 1, 0.1)) +
+#   	coord_cartesian(ylim = c(0, 1)) + 
+#   	theme_tidybayes() + 
+#   	theme(
+#   		legend.justification=c(1,0), 
+#   		legend.position=c(1,0), 
+#   		legend.box.background = element_rect(size=1)) +
+#    # geom_point(data = rolling_fix_prop, aes(y = prop_fix), alpha = 0.25) +
+#    geom_path(data = rolling_fix_prop, aes(y = prop_fix, group = block), alpha = 0.33) 
+
+#   ggsave("scratch/strat_over_trials.png", width = 9, height = 5)
 
 
-# ggplot(dat_p, aes(x  = trial, y = p, colour = n )) + geom_point()
+# # get_variables(m)
+# # m %>% gather_draws(b_trial,  `b_trial:n3`, `b_trial:n4`, `b_trial:n5`) %>%
+# # 	ggplot(aes(x = .value, fill = .variable)) + geom_density(alpha = 0.33)
+
+# # dat_p$p <- predict(m, dat_p)[, 1]
+
+
+# # ggplot(dat_p, aes(x  = trial, y = p, colour = n )) + geom_point()
+
