@@ -1,0 +1,267 @@
+---
+title: "Alasdair's Analysis"
+author: "ADF Clarke"
+date: "30/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.height=4) 
+
+library(brms)
+library(tidyverse)
+library(tidybayes)
+library(patchwork)
+
+rstan::rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+# import data
+source("import_and_tidy_data.R")
+```
+
+# Experiment 1: Deadline
+
+## Look at accuracy data
+
+```{r}
+
+dat_rt_acc %>% filter(condition %in% c("long", "brief")) %>%	
+	group_by(observer, condition, targ_side) %>% 
+	summarise(accuracy = mean(acc), .groups = 'drop') %>%
+	ggplot(aes(x = condition, y = accuracy)) + 
+	geom_boxplot(fill = "purple", alpha = 0.25) +
+	facet_wrap(~ targ_side) +
+	theme_bw() + 
+	scale_y_continuous(limits = c(0.5, 1)) 
+```
+
+## Look at rt data
+
+We will only take the correct trials.
+
+```{r}
+dat_rt_acc %>% filter(condition %in% c("long", "brief"), acc == 1) %>%	
+	group_by(observer, condition, targ_side) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') %>%
+	ggplot(aes(x = condition, y = median_rt)) + 
+	geom_boxplot(fill = "green", alpha = 0.25) +
+	facet_wrap(~ targ_side) +
+	theme_bw() + 
+	scale_y_log10("median rt", breaks = c(1,2,4,8,16)) 
+```
+
+## Saccadic Strategy
+
+First, we need to merge (join) the fixation and accuracy data, so that we can take only correct target absent trials. We will compute the proportion of fixations to the heterogeneous side of the display for each fixation number, over all trials made by a participant. 
+
+```{r}
+dat_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "condition", "block", "t")) %>% 
+	filter(
+		condition %in% c("long", "brief"), 
+		acc == 1,
+		targ_side == "absent") %>%
+	group_by(observer, condition, n) %>%
+	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
+```
+
+Create a facet plot of each individual's strategy.
+
+```{r}
+d_strat %>%
+	ggplot(aes(x = n, y = prop_hetero, colour = condition)) + 
+	geom_line() + 
+	facet_wrap(~ observer, ncol = 3) + 
+	theme_bw() + 
+	scale_colour_viridis_d(end = 0.7) +
+  scale_y_continuous("prop. hetero. fix.", breaks = c(0, 0.5, 1)) +
+	theme(legend.position = "bottom",  
+		strip.background = element_blank(),
+		strip.text.x = element_blank()) -> plt_strat_obs
+```
+
+We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 5) fixations made by an observer over all trials. 
+
+```{r}
+d_strat %>% group_by(observer, condition, n) %>%
+	summarise(strategy = mean(prop_hetero)) %>%
+	ggplot(aes(x = condition, y = strategy, fill = condition)) + 
+	geom_boxplot(alpha = 0.25) +
+	scale_fill_viridis_d(end = 0.7) + 
+	theme_bw() + 
+	theme(legend.position = "none",
+		axis.title = element_blank()) -> plt_strategy
+
+plt_strat_obs + plt_strategy + plot_layout(widths = c(2, 1))
+```
+
+## Bayesian Model of Saccadic Strategy
+
+### Define function for plotting model output
+
+I will want to reuse this plotting code, so I will put it in a function here.
+
+```{r}
+plot_predictions <- function(m, title, b_cond, leg_labs) {
+	m %>% spread_draws(b_Intercept, !!sym(b_cond)) %>%
+		mutate(
+			strat_c1 = b_Intercept,
+			strat_c2 = b_Intercept + !!sym(b_cond),
+			difference = strat_c2 - strat_c1) %>%
+		select(strat_c1, strat_c2, difference) %>%
+		pivot_longer(
+			c(strat_c1, strat_c2, difference), 
+			names_to = "condition", values_to = ".value") %>%
+		ggplot(aes(x = .value, fill = condition)) + 
+    geom_vline(xintercept = 0) + geom_vline(xintercept = 0.5, linetype = 2) +
+			geom_density(alpha = 0.3) +
+    theme_bw() + 
+			ggtitle(title) -> plt
+
+	plot(plt)
+}
+```
+
+### Define Priors
+
+```{r}
+model_priors <- c(
+	prior(normal(0.5, 0.1), class = "Intercept"),
+	prior(normal(0, 0.1), class = "b"))
+```
+
+I can now see what happens when I run the mcmc sampling process with `sample_prior = 'only'`:
+
+```{r}
+prior_model <- brm(
+	data = d_strat,
+	prop_hetero ~ condition + (condition | observer),
+	sample_prior = "only",
+	prior = model_priors)
+```
+
+And plot, to see if it looks reasonable.
+
+```{r}
+plot_predictions(prior_model, "Prior Predictions", "b_conditionbrief", c("long", "brief"))
+```
+
+## Compute and Plot Posterior
+
+# Now refit model using data
+
+```{r}
+my_model <- brm(
+  data = d_strat,
+  prop_hetero ~ condition + (condition | observer),
+  prior = model_priors)
+
+plot_predictions(my_model, "Posterior Predictions", "b_conditionbrief", c("long", "brief"))
+```
+
+
+
+# Experiment 2: Reward
+
+## Look at accuracy data
+
+Remember that we are only looking at block 2 here. 
+
+```{r}
+
+dat_rt_acc %>% filter(condition %in% c("flat", "reward"), block == "block 2") %>%	
+	group_by(observer, condition, targ_side) %>% 
+	summarise(accuracy = mean(acc), .groups = 'drop') %>%
+	ggplot(aes(x = condition, y = accuracy)) + 
+	geom_boxplot(fill = "purple", alpha = 0.25) +
+	facet_wrap(~ targ_side) +
+	theme_bw() + 
+	scale_y_continuous(limits = c(0.5, 1)) 
+```
+
+## Look at rt data
+
+We will only take the correct trials.
+
+```{r}
+dat_rt_acc %>% filter(condition %in% c("flat", "reward"), block == "block 2", acc == 1) %>%	
+	group_by(observer, condition, targ_side) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') %>%
+	ggplot(aes(x = condition, y = median_rt)) + 
+	geom_boxplot(fill = "green", alpha = 0.25) +
+	facet_wrap(~ targ_side) +
+	theme_bw() + 
+	scale_y_log10("median rt", breaks = c(1,2,4,8,16)) 
+```
+
+## Saccadic Strategy
+
+First, we need to merge (join) the fixation and accuracy data, so that we can take only correct target absent trials. We will compute the proportion of fixations to the heterogeneous side of the display for each fixation number, over all trials made by a participant. 
+
+```{r}
+dat_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "condition", "block", "t")) %>% 
+	filter(
+		condition %in% c("flat", "reward"), 
+		block == "block 2",
+		acc == 1,
+		targ_side == "absent") %>%
+	group_by(observer, condition, n) %>%
+	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
+```
+
+Create a facet plot of each individual's strategy.
+
+```{r}
+d_strat %>%
+	ggplot(aes(x = n, y = prop_hetero, colour = condition)) + 
+	geom_line() + 
+	facet_wrap(~ observer, ncol = 3) + 
+	theme_bw() + 
+	scale_colour_viridis_d(end = 0.7) +
+  scale_y_continuous("prop. hetero. fix.", breaks = c(0, 0.5, 1)) +
+	theme(legend.position = "bottom",  
+		strip.background = element_blank(),
+		strip.text.x = element_blank()) -> plt_strat_obs
+```
+
+We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 5) fixations made by an observer over all trials. 
+
+```{r}
+d_strat %>% group_by(observer, condition, n) %>%
+	summarise(strategy = mean(prop_hetero)) %>%
+	ggplot(aes(x = condition, y = strategy, fill = condition)) + 
+	geom_boxplot(alpha = 0.25) +
+	scale_fill_viridis_d(end = 0.7) + 
+	theme_bw() + 
+	theme(legend.position = "none",
+		axis.title = element_blank()) -> plt_strategy
+
+plt_strat_obs + plt_strategy + plot_layout(widths = c(3, 1))
+```
+## Bayesian Model of Saccadic Strategy
+
+I can now see what happens when I run the mcmc sampling process with `sample_prior = 'only'`:
+
+```{r}
+prior_model <- brm(
+	data = d_strat,
+	prop_hetero ~ condition + (condition | observer),
+	sample_prior = "only",
+	prior = model_priors)
+
+plot_predictions(prior_model, "Prior Predictions", "b_conditionreward", c("flat", "reward"))
+```
+
+ # Now refit model using data
+
+```{r}
+my_model <- brm(
+  data = d_strat,
+  prop_hetero ~ condition + (condition | observer),
+  prior = model_priors)
+
+plot_predictions(my_model, "Posterior Predictions", "b_conditionreward", c("flat", "reward"))
+```

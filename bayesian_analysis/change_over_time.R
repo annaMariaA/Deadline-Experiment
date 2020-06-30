@@ -140,15 +140,16 @@ model_priors <- c(
 	prior(normal(0, 0.5), class = "Intercept"),
 	prior(normal(0, 1.0), class = "b"))
 
-# prior predictions
-m_prior <- brm(
-	data = dat_m,
-	hetero_fix ~ condition*block*t*n + (n | subject),
-	family = "bernoulli",
-	sample_prior = "only",
-	prior = model_priors,
-	chains = 1)
-saveRDS(m_prior, "models/my_prior.model")
+# # prior predictions
+# m_prior <- brm(
+# 	data = dat_m,
+# 	hetero_fix ~ condition*block*t*n + (n | subject),
+# 	family = "bernoulli",
+# 	sample_prior = "only",
+# 	prior = model_priors,
+# 	chains = 1)
+# saveRDS(m_prior, "models/my_prior.model")
+m_prior <- readRDS("models/my_prior.model")
 
 plot_model_predictions(dat_m, m_prior, rolling_fix_prop)
 ggsave("scratch/prior_predictions.png")
@@ -156,29 +157,40 @@ ggsave("scratch/prior_predictions.pdf")
 rm(m_prior)
 
 ## Fit model to data and plot posterior predictions
-m_full <- brm(
-	data = dat_m,
-	hetero_fix ~ condition*block*t*n + (n | subject),
-	family = "bernoulli",
-	prior = model_priors,
-	chains = 1)
-m_full <- add_criterion(m_full, c("loo", "waic"))
-saveRDS(m_full, "models/my_full.model")
+# m_full <- brm(
+# 	data = dat_m,
+# 	hetero_fix ~ condition*block*t*n + (n | subject),
+# 	family = "bernoulli",
+# 	prior = model_priors,
+# 	chains = 1)
+ # m_full <- add_criterion(m_full, c("loo", "waic"))
+
+# saveRDS(m_full, "models/my_full.model")
+
+ m_full <- readRDS("models/my_full.model")
 
 plot_model_predictions(dat_m, m_full, rolling_fix_prop)
 ggsave("scratch/posterior_predictions_full.png")
 ggsave("scratch/posterior_predictions_full.pdf")
+rm(m_full)
 
+# m_full_drop4 <- brm(
+# 	data = dat_m,
+# 	hetero_fix ~ condition*block*t*n - condition:block:t:n + (n | subject),
+# 	family = "bernoulli",
+# 	prior = model_priors,
+# 	chains = 1)
+# m_full_drop4 <- add_criterion(m_full_drop4, c("loo", "waic"))
+# saveRDS(m_full_drop4, "models/my_drop4.model")
 
-m_full_drop4 <- brm(
+m_full_drop_block <- brm(
 	data = dat_m,
-	hetero_fix ~ condition*block*t*n - condition:block:t:n + (n | subject),
+	hetero_fix ~ condition*t*n + (n | subject),
 	family = "bernoulli",
 	prior = model_priors,
 	chains = 1)
-m_full_drop4 <- add_criterion(m_full_drop4, c("loo", "waic"))
-saveRDS(m_full, "models/my_full.model")
-
+m_full_drop_block <- add_criterion(m_full_drop_block, c("loo", "waic"))
+saveRDS(m_full_drop_block, "models/my_drop_block.model")
 
 
 # m_trial <- brm(
