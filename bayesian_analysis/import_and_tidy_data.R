@@ -33,8 +33,7 @@ reward_dat %>%
 		rt = "RT",
 		acc) %>%
 	mutate(
-	  observer = paste("r", observer, sep = ""),
-	  condition = if_else(block == " 1", "flat", condition)) -> reward_dat
+	  observer = paste("r", observer, sep = "")) -> reward_dat
 
 
 bind_rows(deadline_dat, reward_dat) %>%
@@ -45,6 +44,10 @@ bind_rows(deadline_dat, reward_dat) %>%
 		condition = fct_relevel(condition, "long", "flat", "brief", "reward"),
 		block = as_factor(block),
 		block = fct_recode(block, "block 1" = "1", "block 2" = "2"),
+		targ_side = fct_recode(targ_side, 
+			heterogeneous = "hetrogeneous",
+			heterogeneous = "heterogenous",
+			homogeneous = "homogenous"),
 		t = as.numeric(t),
 		t = if_else(block == "block 2", t + 96, t))  -> dat_rt_acc
 
@@ -96,12 +99,11 @@ reward_dat %>%
 		n = "fixNum",
 		side) %>%
 	mutate(
-	  observer = paste("r", observer, sep = ""),
-	  condition = if_else(block == " 1", "flat", condition)) -> reward_dat
+	  observer = paste("r", observer, sep = "")) -> reward_dat
 
 
 bind_rows(deadline_dat, reward_dat) %>%
-	filter(n > 1, n < 6) %>%
+	filter(n > 1, n < 7) %>%
 	mutate(
 		condition = as_factor(condition),
 		condition = fct_recode(condition, 
@@ -111,7 +113,7 @@ bind_rows(deadline_dat, reward_dat) %>%
 		block = as_factor(block),
 		block = fct_recode(block, "block 1" = " 1", "block 2" = " 2"),
 		t = if_else(block == "block 2", t + 96, t),
-		ts = scale(t, center = FALSE)[,1]) %>%
+		ts = (t-1)/96) %>%
 	select(-side) -> dat_fix
 
 rm(reward_dat, deadline_dat)

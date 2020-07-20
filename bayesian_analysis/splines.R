@@ -13,11 +13,6 @@ reward_dat <- as_tibble(readRDS("../../Reward-Experiment/data/processedFixData.R
 reward_dat %>% mutate(fixX  = fixXflipped + 512) -> reward_dat
 
 
-subjectsToRemove = c(22,19,12)#22 and 19 accuracy on homogenous trials below 50%, 12 RT on homogenous trials over 8s
-deadline_dat = (deadline_dat[!(deadline_dat$subj%in% subjectsToRemove),])
-deadline_dat$subj = as.factor(deadline_dat$subj)
-
-
 assign_fixation_side <- function(df) {
 	# classify every fixation as homo (right), central, or hetero (left)
 	centralWidth = 64 #change to 1 visual degree
@@ -30,6 +25,9 @@ assign_fixation_side <- function(df) {
 
 deadline_dat <- assign_fixation_side(deadline_dat)
 reward_dat <- assign_fixation_side(reward_dat)
+
+
+
 
 deadline_dat %>% 
 	filter(
@@ -130,16 +128,6 @@ plot_model_predictions <- function(df = dat_m, my_model, rfp = rolling_fix_prop)
 	  		legend.box.background = element_rect(size=1))
 }
 
-
-# # Run lme4 model
-# library(lme4)
-
-# m_freq <- glmer(data = dat_m, 
-# 	hetero_fix ~  condition*scale(t)*n+block + (n | subject),
-# 	family = "binomial",
-# 	control=glmerControl(optimizer="bobyqa",
-#                             optCtrl=list(maxfun=2e5))) 
-
 ## Define priors
 model_priors <- get_prior(
 	data = dat_m,
@@ -202,7 +190,6 @@ m_full_drop_block <- brm(
 m_full_drop_block <- add_criterion(m_full_drop_block, c("loo", "waic"))
 saveRDS(m_full_drop_block, "models/my_drop_block.model")
 
-m_full_drop_block <- readRDS("models/my_drop_block.model")
 
 # m_trial <- brm(
 # 	data = dat_m,
@@ -219,15 +206,15 @@ m_full_drop_block <- readRDS("models/my_drop_block.model")
 # m_block_trial <- add_criterion(m_block_trial, c("loo", "waic"))
 # saveRDS(m_trial, "my_bock_trial.model")
 
-m_no4 <- brm(
-	data = dat_m,
-	hetero_fix ~ condition * block * t * n - condition:block:t:n + (n | subject),
-	family = "bernoulli",
-	sample_prior = "only")
-m_no4 <- add_criterion(m_no4, c("loo", "waic"))
+# m_no4 <- brm(
+# 	data = dat_m,
+# 	hetero_fix ~ condition * block * t * n - condition:block:t:n + (n | subject),
+# 	family = "bernoulli",
+# 	sample_prior = "only")
+# m_no4 <- add_criterion(m_no4, c("loo", "waic"))
 
-saveRDS(m_no4, "models/my_no4.model")
-m_no4 <- readRDS("models/my_no4.model")
+# saveRDS(m_no4, "my_no4.model")
+# m_no4 <- readRDS("my_no4.model")
 
 
 # m_full <- readRDS("my_full.model")

@@ -1,2 +1,3 @@
-
+/bayesian_analysis/analysis_cache/*
+/bayesian_analysis/analysis_files/*
 *.model
