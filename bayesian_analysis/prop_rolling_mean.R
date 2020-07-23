@@ -34,7 +34,7 @@ for (cd in levels(dat_agg$condition))
     					block = blk, 
     					condition = cd, 
     					t = 1:length(wf) + (ws+1)/2,
-    					n = n, 
+    					n = paste("fixation", n), 
     					prop_fix = wf)) -> rolling_fix_prop
   		   }
   	}
