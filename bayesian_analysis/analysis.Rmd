@@ -17,6 +17,7 @@ library(brms)
 library(tidyverse)
 library(tidybayes)
 library(patchwork)
+library(lmerTest)
 
 rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -747,21 +748,69 @@ tibble(condition = c("initial", "flat", "reward")) %>%
 
 ## Original Pre-Registered Analysis
 
-```{r}
-library(lmerTest)
+### Accuracy
 
+```{r exp_reward_lmr_acc, cache = TRUE}
+dat_rt_acc %>% 
+  filter(condition %in% c("flat", "reward")) %>%
+  select(observer, bk_ = "block", cd_ = "condition", acc) %>%
+  group_by(observer, bk_, cd_) %>%
+  summarise(accuracy = mean(acc), .groups = "drop") -> d_lmer_acc
+
+model_acc <- lmer(
+  accuracy ~ bk_ * cd_ + (1|observer), 
+  data =  d_lmer_acc)  
+
+summary(model_acc)
+anova(model_acc)
+```
+
+### Median Reaction Time
+
+```{r exp_reward_lmr_rt, cache = TRUE}
 dat_rt_acc %>% 
   filter(condition %in% c("flat", "reward"), acc == 1) %>%
-  select(observer, block, condition, acc, rt) -> d_lmer
+  select(observer, bk_ = "block", cd_ = "condition", rt) %>%
+  group_by(observer, bk_, cd_) %>%
+  summarise(median_rt = median(rt), .groups = "drop") -> d_lmer_rt
 
-  
-modelRT <- lmer(medianRT ~ block*payment + (1|subj), data = RT)  
-modelAcc <- lmer(medianAcc ~ block*payment + (1|subj), data = accuracy)  
-modelProportion <- lmer(medianAcc ~ block*payment + (1|subj), data = proportion)  
- 
-summary(model)
-aov<- anova(model),
+model_rt <- lmer(
+  median_rt ~ bk_ * cd_ + (1|observer), 
+  data =  d_lmer_rt)  
 
+summary(model_rt)
+anova(model_rt)
+```
+
+```{r exp_reward_lmr_ef, cache = TRUE}
+dat_rt_acc %>% 
+  filter(condition %in% c("flat", "reward"), acc == 1) %>%
+  select(observer, bk_ = "block", cd_ = "condition", rt) %>%
+  group_by(observer, bk_, cd_) %>%
+  summarise(median_rt = median(rt), .groups = "drop") -> d_lmer_rt
+
+model_rt <- lmer(
+  median_rt ~ bk_ * cd_ + (1|observer), 
+  data =  d_lmer_rt)  
+
+summary(model_rt)
+anova(model_rt)
+```
+
+### Search Efficiency
+
+```{r exp_reward_lmr_see, cache = TRUE}
+d_strat %>%
+  select(observer,  bk_ = "block", cd_ = "condition", t, prop_hetero) %>%
+   group_by(observer, bk_, cd_) %>%
+  summarise(median_search_ef = median(prop_hetero), .groups = "drop") -> d_lmer_se
+
+model_se <- lmer(
+  median_search_ef ~ bk_ * cd_ + (1|observer), 
+  data =  d_lmer_se)  
+
+summary(model_se)
+anova(model_se)
 ```
 
 # Time-course Analysis

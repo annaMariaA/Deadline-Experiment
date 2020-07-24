@@ -634,6 +634,173 @@ summary {
 ## # … with 5 more variables: difference.lower &lt;dbl&gt;, difference.upper &lt;dbl&gt;,
 ## #   .width &lt;dbl&gt;, .point &lt;chr&gt;, .interval &lt;chr&gt;</code></pre>
 </div>
+<div id="original-pre-registered-analysis" class="section level2">
+<h2>Original Pre-Registered Analysis</h2>
+<div id="accuracy" class="section level3">
+<h3>Accuracy</h3>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: accuracy ~ bk_ * cd_ + (1 | observer)
+##    Data: d_lmer_acc
+## 
+## REML criterion at convergence: -137.2
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.7596 -0.3331  0.0032  0.4835  2.3775 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  observer (Intercept) 0.006457 0.08036 
+##  Residual             0.003678 0.06065 
+## Number of obs: 78, groups:  observer, 39
+## 
+## Fixed effects:
+##                       Estimate Std. Error        df t value Pr(&gt;|t|)    
+## (Intercept)           0.796026   0.023729 52.634479  33.547  &lt; 2e-16 ***
+## bk_block 2            0.043949   0.020215 37.000000   2.174  0.03617 *  
+## cd_reward            -0.091066   0.032337 52.634479  -2.816  0.00683 ** 
+## bk_block 2:cd_reward -0.009082   0.027549 37.000000  -0.330  0.74350    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) bk_bl2 cd_rwr
+## bk_block 2  -0.426              
+## cd_reward   -0.734  0.313       
+## bk_blc2:cd_  0.313 -0.734 -0.426</code></pre>
+<pre><code>## Type III Analysis of Variance Table with Satterthwaite's method
+##           Sum Sq  Mean Sq NumDF DenDF F value   Pr(&gt;F)   
+## bk_     0.030104 0.030104     1    37  8.1851 0.006907 **
+## cd_     0.039275 0.039275     1    37 10.6788 0.002344 **
+## bk_:cd_ 0.000400 0.000400     1    37  0.1087 0.743499   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+<div id="median-reaction-time" class="section level3">
+<h3>Median Reaction Time</h3>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: median_rt ~ bk_ * cd_ + (1 | observer)
+##    Data: d_lmer_rt
+## 
+## REML criterion at convergence: 434.4
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.2991 -0.3078 -0.0809  0.3153  3.2528 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  observer (Intercept) 26.257   5.124   
+##  Residual              5.393   2.322   
+## Number of obs: 78, groups:  observer, 39
+## 
+## Fixed effects:
+##                      Estimate Std. Error      df t value Pr(&gt;|t|)    
+## (Intercept)           11.4244     1.3260 43.8324   8.616 5.54e-11 ***
+## bk_block 2            -3.4926     0.7741 37.0000  -4.512 6.30e-05 ***
+## cd_reward             -7.1036     1.8071 43.8324  -3.931 0.000297 ***
+## bk_block 2:cd_reward   2.9688     1.0549 37.0000   2.814 0.007786 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) bk_bl2 cd_rwr
+## bk_block 2  -0.292              
+## cd_reward   -0.734  0.214       
+## bk_blc2:cd_  0.214 -0.734 -0.292</code></pre>
+<pre><code>## Type III Analysis of Variance Table with Satterthwaite's method
+##         Sum Sq Mean Sq NumDF DenDF F value    Pr(&gt;F)    
+## bk_     78.174  78.174     1    37 14.4957 0.0005119 ***
+## cd_     57.004  57.004     1    37 10.5701 0.0024528 ** 
+## bk_:cd_ 42.713  42.713     1    37  7.9202 0.0077858 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: median_rt ~ bk_ * cd_ + (1 | observer)
+##    Data: d_lmer_rt
+## 
+## REML criterion at convergence: 434.4
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.2991 -0.3078 -0.0809  0.3153  3.2528 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  observer (Intercept) 26.257   5.124   
+##  Residual              5.393   2.322   
+## Number of obs: 78, groups:  observer, 39
+## 
+## Fixed effects:
+##                      Estimate Std. Error      df t value Pr(&gt;|t|)    
+## (Intercept)           11.4244     1.3260 43.8324   8.616 5.54e-11 ***
+## bk_block 2            -3.4926     0.7741 37.0000  -4.512 6.30e-05 ***
+## cd_reward             -7.1036     1.8071 43.8324  -3.931 0.000297 ***
+## bk_block 2:cd_reward   2.9688     1.0549 37.0000   2.814 0.007786 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) bk_bl2 cd_rwr
+## bk_block 2  -0.292              
+## cd_reward   -0.734  0.214       
+## bk_blc2:cd_  0.214 -0.734 -0.292</code></pre>
+<pre><code>## Type III Analysis of Variance Table with Satterthwaite's method
+##         Sum Sq Mean Sq NumDF DenDF F value    Pr(&gt;F)    
+## bk_     78.174  78.174     1    37 14.4957 0.0005119 ***
+## cd_     57.004  57.004     1    37 10.5701 0.0024528 ** 
+## bk_:cd_ 42.713  42.713     1    37  7.9202 0.0077858 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+<div id="search-efficiency" class="section level3">
+<h3>Search Efficiency</h3>
+<pre><code>## fixed-effect model matrix is rank deficient so dropping 3 columns / coefficients</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: median_search_ef ~ bk_ * cd_ + (1 | observer)
+##    Data: d_lmer_se
+## 
+## REML criterion at convergence: 2
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.0444 -0.4745  0.0963  0.4609  1.4285 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  observer (Intercept) 0.05182  0.2276  
+##  Residual             0.02207  0.1486  
+## Number of obs: 78, groups:  observer, 39
+## 
+## Fixed effects:
+##             Estimate Std. Error       df t value Pr(&gt;|t|)    
+## (Intercept)  0.50256    0.04353 50.82578  11.546 8.07e-16 ***
+## bk_block 2   0.13314    0.04749 43.21037   2.804  0.00754 ** 
+## cd_reward   -0.10718    0.06224 49.94386  -1.722  0.09125 .  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##            (Intr) bk_bl2
+## bk_block 2 -0.274       
+## cd_reward   0.000 -0.706
+## fit warnings:
+## fixed-effect model matrix is rank deficient so dropping 3 columns / coefficients</code></pre>
+<pre><code>## Missing cells for: bk_block 2:cd_initial, bk_block 1:cd_reward, bk_block 1:cd_flat.  
+## Interpret type III hypotheses with care.</code></pre>
+<pre><code>## Type III Analysis of Variance Table with Satterthwaite's method
+##           Sum Sq  Mean Sq NumDF  DenDF F value   Pr(&gt;F)   
+## bk_     0.173494 0.173494     1 43.210  7.8604 0.007539 **
+## cd_     0.065451 0.065451     1 49.944  2.9654 0.091255 . 
+## bk_:cd_                                                   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+</div>
 </div>
 <div id="time-course-analysis" class="section level1">
 <h1>Time-course Analysis</h1>
