@@ -745,6 +745,25 @@ tibble(condition = c("initial", "flat", "reward")) %>%
   median_hdci(flat, reward, difference)
 ```
 
+## Original Pre-Registered Analysis
+
+```{r}
+library(lmerTest)
+
+dat_rt_acc %>% 
+  filter(condition %in% c("flat", "reward"), acc == 1) %>%
+  select(observer, block, condition, acc, rt) -> d_lmer
+
+  
+modelRT <- lmer(medianRT ~ block*payment + (1|subj), data = RT)  
+modelAcc <- lmer(medianAcc ~ block*payment + (1|subj), data = accuracy)  
+modelProportion <- lmer(medianAcc ~ block*payment + (1|subj), data = proportion)  
+ 
+summary(model)
+aov<- anova(model),
+
+```
+
 # Time-course Analysis
 
 I will now look to see what happens to search strategy over time: both on the scale of an individual trial, within and across blocks, and between experimental condition! First, I will fit one model to the data from both experiments.
