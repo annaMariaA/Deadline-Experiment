@@ -1,8 +1,11 @@
 ---
-title: "Supplementary Materials"
+title: "Supplementary Materials: Search strategies improve with practice, but not with time pressure or financial incentives"
 author: "ADF Clarke"
 date: "30/06/2020"
-output: html_document
+output: 
+  bookdown::html_document2:
+    theme: journal
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -11,7 +14,7 @@ output: html_document
 set.seed(2020)
 
 knitr::opts_chunk$set(echo = FALSE)
-knitr::opts_chunk$set(fig.height = 4) 
+knitr::opts_chunk$set(fig.height = 4, fig.align = 'center') 
 
 library(brms)
 library(tidyverse)
@@ -23,7 +26,9 @@ rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 # import data
-source("import_and_tidy_data.R")
+# source("import_and_tidy_data.R")
+dat_rt_acc <- read_csv("dat_acc_rt.csv")
+dat_fix <- read_csv("dat_fix.csv")
 ```
 
 These supplementary materials contain more details of the Bayesian analysis, including power analysis. Please see the source Rmd file for full code. 
@@ -38,11 +43,11 @@ We will first look at descriptive statistics for accuracy and reaction time data
 
 ```{r}
 dat_rt_acc %>% 
-  filter(condition %in% c("long", "brief")) %>%
-  mutate(condition = fct_relevel(condition, "long")) %>%
-	group_by(observer, condition, targ_side) %>% 
+  filter(cd %in% c("long", "brief")) %>%
+  mutate(cd = fct_relevel(cd, "long")) %>%
+	group_by(observer, cd, targ_side) %>% 
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = condition, y = accuracy, fill = fct_rev(condition))) + 
+	ggplot(aes(x = cd, y = accuracy, fill = fct_rev(cd))) + 
   	geom_boxplot(alpha = 0.25) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
@@ -56,11 +61,11 @@ After plotting the accuracy data, incorrect trials are removed from all further 
 ```{r}
 dat_rt_acc %>% 
   filter(
-    condition %in% c("long", "brief"), 
+    cd %in% c("long", "brief"), 
     acc == 1) %>%	
-	group_by(observer, condition, targ_side) %>% 
+	group_by(observer, cd, targ_side) %>% 
 	summarise(median_rt = median(rt), .groups = 'drop') %>%
-	ggplot(aes(x = condition, y = median_rt, fill = fct_rev(condition))) + 
+	ggplot(aes(x = cd, y = median_rt, fill = fct_rev(cd))) + 
   	geom_boxplot(alpha = 0.25) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
@@ -80,12 +85,12 @@ First, we need to merge (join) the fixation and accuracy data, so that we can ta
 
 ```{r}
 dat_fix %>% left_join(dat_rt_acc, 
-                      by = c("observer", "condition", "block", "t")) %>% 
+                      by = c("observer", "cd", "bk", "t")) %>% 
 	filter(
-		condition %in% c("long", "brief"), 
+		cd %in% c("long", "brief"), 
 		acc == 1,
 		targ_side == "absent") %>%
-	group_by(observer, condition, n) %>%
+	group_by(observer, cd, n) %>%
 	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
 ```
 
@@ -93,7 +98,7 @@ Create a facet plot of each individual's strategy.
 
 ```{r}
 d_strat %>%
-	ggplot(aes(x = n, y = prop_hetero, colour = condition)) + 
+	ggplot(aes(x = n, y = prop_hetero, colour = cd)) + 
   	geom_line() + 
   	facet_wrap(~ observer, ncol = 3) + 
   	theme_bw() + 
@@ -106,10 +111,10 @@ d_strat %>%
 
 We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 6) fixations made by an observer over all trials. 
 
-```{r}
-d_strat %>% group_by(observer, condition) %>%
+```{r fig.height=5}
+d_strat %>% group_by(observer, cd) %>%
 	summarise(strategy = mean(prop_hetero), .groups = "drop") %>%
-	ggplot(aes(x = condition, y = strategy, colour = fct_rev(condition), fill = fct_rev(condition))) + 
+	ggplot(aes(x = cd, y = strategy, colour = fct_rev(cd), fill = fct_rev(cd))) + 
   	geom_boxplot(alpha = 0.3, colour = "black") +
     geom_point(alpha = 0.5) + 
     geom_path(aes(group = observer), colour = "grey", alpha = 0.5) +
@@ -133,12 +138,12 @@ Note, as beta distributions are only defined over (0, 1), values of 0 and 1 are 
 dat_fix %>% 
   left_join(
     dat_rt_acc, 
-    by = c("observer", "condition", "block", "t")) %>% 
+    by = c("observer", "cd", "bk", "t")) %>% 
 	filter(
-		condition %in% c("long", "brief"), 
+		cd %in% c("long", "brief"), 
 		acc == 1,
 		targ_side == "absent") %>%
-	group_by(observer, condition, t) %>%
+	group_by(observer, cd, t) %>%
 	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') %>% 
   mutate(
     prop_hetero = if_else(prop_hetero < 0.001, 0.001, prop_hetero),
@@ -152,17 +157,17 @@ I will want to reuse this plotting code, so I will put it in a function here.
 ```{r}
 plot_deadline_predictions <- function(m, title) 
 {
-  tibble(condition = c("long", "brief")) %>%
+  tibble(cd = c("long", "brief")) %>%
     add_fitted_draws(m, re_formula = NA) %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(difference = brief - long) %>%
-    pivot_longer(-.draw, names_to = "condition", values_to = "prop_hetero") %>%
+    pivot_longer(-.draw, names_to = "cd", values_to = "prop_hetero") %>%
     mutate(
-      condition = as_factor(condition),
-      condition = fct_relevel(condition, "long", "difference", "brief")) %>%
-		ggplot(aes(x = prop_hetero, fill = condition)) + 
+      cd = as_factor(cd),
+      cd = fct_relevel(cd, "long", "difference", "brief")) %>%
+		ggplot(aes(x = prop_hetero, fill = cd)) + 
     geom_vline(xintercept = 0) + 
     geom_vline(xintercept = 0.5, linetype = 2) +
 		geom_density(alpha = 0.3) +
@@ -184,10 +189,10 @@ model_priors <- c(
 	prior(normal(0, 1), class = "b"))
 ```
 
-```{r exp1modelprior, cache=TRUE, echo = TRUE}
+```{r exp1modelprior, cache=TRUE, echo = TRUE, message = FALSE}
 prior_model <- brm(
 	data = d_strat,
-	prop_hetero ~ 0 + condition + (condition | observer),
+	prop_hetero ~ 0 + cd + (cd | observer),
 	family = "beta",
 	sample_prior = "only",
 	prior = model_priors,
@@ -204,10 +209,10 @@ plt_prior
 
 We will carry out our power analysis by simulating our experiment assuming the distributions below. 
 
-```{r exp1modelpower, cache=TRUE, echo = TRUE}
+```{r exp1modelpower, cache=TRUE, echo=TRUE}
 power_prior <- c(
-  prior(normal(0.1, 0.25), class = "b", coef = "conditionlong"),
-	prior(normal(0.7, 0.25), class = "b", coef = "conditionbrief"),
+  prior(normal(0.1, 0.25), class = "b", coef = "cdlong"),
+	prior(normal(0.7, 0.25), class = "b", coef = "cdbrief"),
   prior(student_t(3, 0, 2), class = "sd"),
   prior(gamma(1, 10), class = "phi")
   )
@@ -216,7 +221,7 @@ power_prior <- c(
 ```{r exp1modelpwr, cache=TRUE}
 power_model <- brm(
 	data = d_strat,
-	prop_hetero ~ 0 + condition + (condition | observer),
+	prop_hetero ~ 0 + cd + (cd | observer),
 	family = "beta",
 	sample_prior = "only",
 	prior = power_prior,
@@ -231,7 +236,7 @@ sample_data <- function(n_obs, n_trl)
 {
   d_strat %>% 
     modelr::data_grid(
-      condition = c("long", "brief"), 
+      cd = c("long", "brief"), 
       observer = 1:n_obs) %>%
     add_fitted_draws(
       power_model, 
@@ -241,7 +246,7 @@ sample_data <- function(n_obs, n_trl)
       sample_new_levels = "gaussian", 
       allow_new_levels = TRUE) %>% 
     ungroup() %>%
-    select(observer, condition, prop_hetero = ".value") %>%
+    select(observer, cd, prop_hetero = ".value") %>%
     mutate(
       prop_hetero = if_else(prop_hetero < 0.0001, 0.0001, prop_hetero),
       prop_hetero = if_else(prop_hetero > 0.9999, 0.9999, prop_hetero)) -> d_sim
@@ -261,7 +266,7 @@ These corresponds to assuming distributions with the means presented below:
 
 ```{r}
 sample_data(15, 32) %>% 
-  group_by(condition) %>% 
+  group_by(cd) %>% 
   summarise(`mean prop. fix hetero.` = mean(prop_hetero), .groups = "drop") %>%
   knitr::kable()
 ```
@@ -277,7 +282,7 @@ get_p_difference <- function(n_obs, n_trls) {
   # fit model to simulated data
   sim_model <- brm(
   	data = d_sim,
-  	prop_hetero ~ 0 + condition + (condition | observer),
+  	prop_hetero ~ 0 + cd + (cd | observer),
   	family = "beta",
   	prior = model_priors,
   	iter = 5000,
@@ -285,11 +290,11 @@ get_p_difference <- function(n_obs, n_trls) {
   	refresh = 0)
   
   # use fitted model to caculate p(difference between conditions > 0 | data)  
-  tibble(condition = c("long", "brief")) %>%
+  tibble(cd = c("long", "brief")) %>%
     add_fitted_draws(sim_model, re_formula = NA, scale = "response") %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(difference = brief - long) %>%
     summarise(prob_diff = mean(difference>0)) -> d
   
@@ -297,7 +302,7 @@ get_p_difference <- function(n_obs, n_trls) {
 }
 ```
 
-We now generate multiple (=50) simulated datasets with 15 observers and 32 correct target absent trials. We then compute $p(\delta > 0| d)$, (the probablity, given the data, of seeing postive difference between the brief and long conditions) for each. The expected distribution of this statistic is shown below. We can see that in (almost?) every iteration, we get a balue about 0.95. 
+We now generate multiple (=50) simulated datasets with 15 observers and 32 correct target absent trials. We then compute $p(\delta > 0| d)$, (the probablity, given the data, of seeing postive difference between the brief and long conditions) for each. The expected distribution of this statistic is shown below. We can see that in (almost?) every iteration, we get a value about 0.95. 
 
 ```{r runpoweranalysis, cache=TRUE, message=FALSE, warning=FALSE}
   
@@ -333,18 +338,18 @@ Now that we are confident that we have a sensible prior, and have carried out a 
 ```{r exp1modelposterior, cache=TRUE, echo = TRUE}
 my_model <- brm(
   data = d_strat,
-  prop_hetero ~ 0 + condition + (condition | observer),
+  prop_hetero ~ 0 + cd + (cd | observer),
   family = "beta",
 	prior = model_priors,
 	iter = 10000,
 	control = list(adapt_delta = 0.95))
 ```
 
-```{r}
+```{r, R.options = list(width = 100)}
 summary(my_model)
 ```
 
-```{r}
+```{r fig.height=6}
 plt_posterior <- plot_deadline_predictions(my_model, "(c) Posterior")
 plt_posterior
 
@@ -356,50 +361,27 @@ ggsave(
   height = 2.5)
 ```
 
-
 ```{r}
-tibble(condition = c("long", "brief")) %>%
+tibble(cd = c("long", "brief")) %>%
     add_fitted_draws(my_model, re_formula = NA) %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(difference = brief - long) %>%
   summarise(prob_diff_greater_zero = mean(difference > 0)) -> pxd
 
 
-tibble(condition = c("long", "brief")) %>%
+tibble(cd = c("long", "brief")) %>%
     add_fitted_draws(my_model, re_formula = NA) %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(difference = brief - long) %>%
   median_hdci(long, brief, difference) %>%
   knitr::kable()
 ```
 
 We can conclude that $p(x>0 | d) = $ `r pxd[1]`.
-
-<!-- ### Compute block to block R2 on the simpler aggregate data -->
-
-<!-- ```{r} -->
-
-<!-- dat_fix %>% left_join(dat_rt_acc,  -->
-<!--                       by = c("observer", "condition", "block", "t")) %>%  -->
-<!-- 	filter( -->
-<!-- 		condition %in% c("long", "brief"),  -->
-<!-- 		acc == 1, -->
-<!-- 		targ_side == "absent") %>% -->
-<!-- 	group_by(observer, block, t) %>% -->
-<!-- 	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') %>%  -->
-<!--   group_by(observer, block) %>%  -->
-<!--   summarise(strategy = mean(prop_hetero)) -> dR2 -->
-
-<!-- d_strat %>% group_by(observer, condition) %>% -->
-<!--   summarise(strategy = mean(prop_hetero)) -> d_R2 -->
-
-<!-- bayes_R2(brm(strategy ~ observer, prior = model_priors, data = d_R2)) -->
-
-<!-- ``` -->
 
 # Experiment 2: Reward
 
@@ -408,10 +390,10 @@ We can conclude that $p(x>0 | d) = $ `r pxd[1]`.
 ### Accuracy and Reaction Time
 
 ```{r}
-dat_rt_acc %>% filter(condition %in% c("flat", "reward")) %>%
-	group_by(observer, block, condition, targ_side) %>%
+dat_rt_acc %>% filter(cd %in% c("flat", "reward")) %>%
+	group_by(observer, bk, cd, targ_side) %>%
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = block, y = accuracy, fill = condition)) +
+	ggplot(aes(x = bk, y = accuracy, fill = cd)) +
 	geom_boxplot(alpha = 0.25) +
 	facet_wrap(~ targ_side) +
 	theme_bw() +
@@ -422,10 +404,10 @@ dat_rt_acc %>% filter(condition %in% c("flat", "reward")) %>%
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
 
 ```{r}
-dat_rt_acc %>% filter(condition %in% c("flat", "reward"), acc == 1) %>%
-	group_by(observer, block, condition, targ_side) %>%
+dat_rt_acc %>% filter(cd %in% c("flat", "reward"), acc == 1) %>%
+	group_by(observer, bk, cd, targ_side) %>%
 	summarise(median_rt = median(rt), .groups = 'drop') %>%
-	ggplot(aes(x = block, y = median_rt, fill = condition)) +
+	ggplot(aes(x = bk, y = median_rt, fill = cd)) +
 	geom_boxplot(alpha = 0.25) +
 	facet_wrap(~ targ_side) +
 	theme_bw() +
@@ -444,12 +426,12 @@ First, we need to merge (join) the fixation and accuracy data, so that we can ta
 
 ```{r}
 dat_fix %>% left_join(dat_rt_acc,
-                      by = c("observer", "condition", "block", "t")) %>%
+                      by = c("observer", "cd", "bk", "t")) %>%
 	filter(
-		condition %in% c("initial", "flat", "reward"),
+		cd %in% c("initial", "flat", "reward"),
 		acc == 1,
 		targ_side == "absent") %>%
-	group_by(observer, block, condition, n) %>%
+	group_by(observer, bk, cd, n) %>%
 	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
 ```
 
@@ -457,7 +439,7 @@ Create a facet plot of each individual's strategy.
 
 ```{r, fig.height = 8}
 plt_strat_obs <- d_strat %>%
-	ggplot(aes(x = n, y = prop_hetero, colour = block)) +
+	ggplot(aes(x = n, y = prop_hetero, colour = bk)) +
 	geom_line() +
 	facet_wrap(~ observer, ncol = 3) +
 	theme_bw() +
@@ -470,16 +452,16 @@ plt_strat_obs <- d_strat %>%
 
 We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 6) fixations made by an observer over all trials. 
 
-```{r}
+```{r fig.height=6}
 plt_strategy <- d_strat %>%
-  group_by(observer, block, condition) %>%
+  group_by(observer, bk, cd) %>%
 	summarise(strategy = mean(prop_hetero)) %>%
-	ggplot(aes(x = block, y = strategy, fill = condition)) +
+	ggplot(aes(x = bk, y = strategy, fill = cd)) +
 	geom_boxplot(alpha = 0.25) +
   geom_point(alpha = 0.5) + 
   geom_path(aes(group = observer), colour = "grey", alpha = 0.5) +
 	scale_fill_manual(values = c("#CC6677", "#117733")) +
-  facet_wrap(~ condition) +
+  facet_wrap(~ cd) +
 	theme_bw() +
 	theme(legend.position = "none",
 		axis.title = element_blank()) +
@@ -496,15 +478,15 @@ Note, as beta distributions are only defined over (0, 1), values of 0 and 1 are 
 
 ```{r}
 dat_fix %>% left_join(dat_rt_acc,
-                      by = c("observer", "condition", "block", "t")) %>%
+                      by = c("observer", "cd", "bk", "t")) %>%
 	filter(
-		condition %in% c("flat", "reward"),
+		cd %in% c("flat", "reward"),
 		acc == 1,
 		targ_side == "absent") %>%
   mutate(
-    condition = if_else(block == "block 1", "initial", as.character(condition)),
-    condition = as_factor(condition)) %>%
-	group_by(observer, block, condition, t) %>%
+    cd = if_else(bk == "block 1", "initial", as.character(cd)),
+    cd = as_factor(cd)) %>%
+	group_by(observer, bk, cd, t) %>%
 	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') %>%
   mutate(
     prop_hetero = if_else(prop_hetero == 0, 0.01, prop_hetero),
@@ -514,22 +496,22 @@ dat_fix %>% left_join(dat_rt_acc,
 ```{r}
 plot_reward_predictions <- function(m, title) {
   
-  tibble(condition = c("initial", "flat", "reward")) %>%
+  tibble(cd = c("initial", "flat", "reward")) %>%
     add_fitted_draws(m, re_formula = NA) %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(
       improv_flat = flat - initial,
       improv_reward = reward - initial,
       difference = improv_reward - improv_flat) %>%
     select(-initial, -flat, -reward) %>%
-    pivot_longer(-.draw, names_to = "condition", values_to = "difference") %>%
+    pivot_longer(-.draw, names_to = "cd", values_to = "difference") %>%
     mutate(
-      condition = as_factor(condition),
-      condition = fct_relevel(condition, "improv_flat", "difference", "improv_reward"),
-      condition = fct_recode(condition, flat = "improv_flat", reward = "improv_reward")) %>%
-		ggplot(aes(x = difference, fill = condition)) + 
+      cd = as_factor(cd),
+      cd = fct_relevel(cd, "improv_flat", "difference", "improv_reward"),
+      cd = fct_recode(cd, flat = "improv_flat", reward = "improv_reward")) %>%
+		ggplot(aes(x = difference, fill = cd)) + 
     geom_vline(xintercept = 0, linetype = 2) +
 			geom_density(alpha = 0.3) +
     theme_bw() + 
@@ -549,10 +531,10 @@ model_priors <- c(
 	prior(normal(0, 1), class = "b"))
 ```
 
-```{r exp2modelprior, cache=TRUE, echo = TRUE, message = FALSE}
+```{r exp2modelprior, cache=TRUE, echo = TRUE, message = FALSE, warning = FALSE}
 prior_model <- brm(
 	data = d_strat,
-	prop_hetero ~ 0 + condition + (condition | observer),
+	prop_hetero ~ 0 + cd + (cd | observer),
 	sample_prior = "only",
 	family = "beta",
 	prior = model_priors,
@@ -571,19 +553,19 @@ plt_prior
 
 We will carry out our power analysis by simulating our experiment assuming the distributions below. 
 
-```{r exp2modelpower, cache=TRUE}
+```{r exp2modelpower, cache=TRUE, message=FALSE}
 
 power_prior <- c(
-  prior(normal(0.1, 0.25), class = "b", coef = "conditioninitial"),
-	prior(normal(0.2, 0.25), class = "b", coef = "conditionflat"),
-  	prior(normal(0.7, 0.25), class = "b", coef = "conditionreward"),
+  prior(normal(0.1, 0.25), class = "b", coef = "cdinitial"),
+	prior(normal(0.2, 0.25), class = "b", coef = "cdflat"),
+  	prior(normal(0.7, 0.25), class = "b", coef = "cdreward"),
   prior(student_t(3, 0, 2), class = "sd"),
   prior(gamma(1, 10), class = "phi")
   )
 
 power_model <- brm(
 	data = d_strat,
-	prop_hetero ~ 0 + condition + (condition | observer),
+	prop_hetero ~ 0 + cd + (cd | observer),
 	family = "beta",
 	sample_prior = "only",
 	prior = power_prior,
@@ -606,7 +588,7 @@ sample_reward_data <- function(n_obs, n_trl)
 {
   d_strat %>% 
     modelr::data_grid(
-      condition = c("initial", "flat", "reward"), 
+      cd = c("initial", "flat", "reward"), 
       observer = 1:n_obs) %>%
     add_fitted_draws(
       power_model, 
@@ -616,7 +598,7 @@ sample_reward_data <- function(n_obs, n_trl)
       sample_new_levels = "gaussian", 
       allow_new_levels = TRUE) %>% 
     ungroup() %>%
-    select(observer, condition, prop_hetero = ".value") %>%
+    select(observer, cd, prop_hetero = ".value") %>%
     mutate(
       prop_hetero = if_else(prop_hetero < 0.0001, 0.0001, prop_hetero),
       prop_hetero = if_else(prop_hetero > 0.9999, 0.9999, prop_hetero)) -> d_sim
@@ -636,7 +618,7 @@ get_p_difference_reward <- function(n_obs, n_trls) {
   # fit model to simulated data
   sim_model <- brm(
   	data = d_sim,
-  	prop_hetero ~ 0 + condition + (condition | observer),
+  	prop_hetero ~ 0 + cd + (cd | observer),
   	family = "beta",
   	prior = model_priors,
   	iter = 5000,
@@ -644,11 +626,11 @@ get_p_difference_reward <- function(n_obs, n_trls) {
   	refresh = 0)
   
   # use fitted model to caculate p(difference between conditions > 0 | data)  
-  tibble(condition = c("initial", "flat", "reward")) %>%
+  tibble(cd = c("initial", "flat", "reward")) %>%
     add_fitted_draws(sim_model, re_formula = NA, scale = "response") %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(
       flat = flat - initial,
       reward = reward - initial,
@@ -687,23 +669,28 @@ d_pwr_reward  %>%
     theme_bw() +
     scale_x_continuous("p(x>0 | d)")
 
-d_pwr_reward  %>% summarise(over_90 = sum(power > 0.9))
+d_pwr_reward  %>% summarise(over_90 = sum(power > 0.9), .groups = "drop")
 
 d_pwr_reward  <- sample_reward_data(n_obs, n_trls)
-d_pwr_reward  %>% group_by(condition) %>% summarise(mean_ph = mean(prop_hetero))
+d_pwr_reward  %>% group_by(cd) %>% summarise(mean_ph = mean(prop_hetero))
 ```
 
 ## Now refit model using data
 
-```{r exp2modelposterior, cache=TRUE, fig.show = "hide"}
+```{r exp2modelposterior, cache=TRUE, fig.show="hide", message=FALSE}
 my_model <- brm(
   data = d_strat,
-  prop_hetero ~ 0 + condition + (condition | observer),
+  prop_hetero ~ 0 + cd + (cd | observer),
   family = "beta",
 	prior = model_priors,
 	iter = 10000,
 	control = list(adapt_delta = 0.95))
 ```
+
+```{r}
+summary(my_model)
+```
+
 
 ```{r}
 plt_posterior <- plot_reward_predictions(my_model, "Posterior Predictions")
@@ -722,23 +709,22 @@ plt_strategy / (plt_prior + plt_posterior) + plot_layout(guides = "collect")
 What is the the probability of a difference > 0, given the data? 
 
 ```{r}
-tibble(condition = c("initial", "flat", "reward")) %>%
+tibble(cd = c("initial", "flat", "reward")) %>%
   add_fitted_draws(my_model, re_formula = NA) %>%
 	ungroup() %>%
-  select(.draw, condition, .value) %>%
-	pivot_wider(names_from = condition, values_from = .value) %>%
+  select(.draw, cd, .value) %>%
+	pivot_wider(names_from = cd, values_from = .value) %>%
   mutate(
     improv_flat = flat - initial,
     improv_reward = reward - initial,
     difference = improv_reward - improv_flat) %>%
-  summarise(prob_diff_greater_zero = mean(difference > 0))
+  summarise(prob_diff_greater_zero = mean(difference > 0), .groups = "drop")
 
-
-tibble(condition = c("initial", "flat", "reward")) %>%
+tibble(cd = c("initial", "flat", "reward")) %>%
     add_fitted_draws(my_model, re_formula = NA) %>%
 		ungroup() %>%
-    select(.draw, condition, .value) %>%
-		pivot_wider(names_from = condition, values_from = .value) %>%
+    select(.draw, cd, .value) %>%
+		pivot_wider(names_from = cd, values_from = .value) %>%
     mutate(
       flat = flat - initial,
       reward = reward - initial,
@@ -748,17 +734,18 @@ tibble(condition = c("initial", "flat", "reward")) %>%
 
 ## Original Pre-Registered Analysis
 
+We original pre-registered an analysis plan for this experiment using frequentist statistics. The results of this planned analysis are presented here.
+
 ### Accuracy
 
 ```{r exp_reward_lmr_acc, cache = TRUE}
 dat_rt_acc %>% 
-  filter(condition %in% c("flat", "reward")) %>%
-  select(observer, bk_ = "block", cd_ = "condition", acc) %>%
-  group_by(observer, bk_, cd_) %>%
+  filter(cd %in% c("flat", "reward")) %>%
+  group_by(observer, bk, cd) %>%
   summarise(accuracy = mean(acc), .groups = "drop") -> d_lmer_acc
 
 model_acc <- lmer(
-  accuracy ~ bk_ * cd_ + (1|observer), 
+  accuracy ~ bk * cd + (1|observer), 
   data =  d_lmer_acc)  
 
 summary(model_acc)
@@ -769,13 +756,12 @@ anova(model_acc)
 
 ```{r exp_reward_lmr_rt, cache = TRUE}
 dat_rt_acc %>% 
-  filter(condition %in% c("flat", "reward"), acc == 1) %>%
-  select(observer, bk_ = "block", cd_ = "condition", rt) %>%
-  group_by(observer, bk_, cd_) %>%
+  filter(cd %in% c("flat", "reward"), acc == 1) %>%
+  group_by(observer, bk, cd) %>%
   summarise(median_rt = median(rt), .groups = "drop") -> d_lmer_rt
 
 model_rt <- lmer(
-  median_rt ~ bk_ * cd_ + (1|observer), 
+  median_rt ~ bk * cd + (1|observer), 
   data =  d_lmer_rt)  
 
 summary(model_rt)
@@ -784,13 +770,12 @@ anova(model_rt)
 
 ```{r exp_reward_lmr_ef, cache = TRUE}
 dat_rt_acc %>% 
-  filter(condition %in% c("flat", "reward"), acc == 1) %>%
-  select(observer, bk_ = "block", cd_ = "condition", rt) %>%
-  group_by(observer, bk_, cd_) %>%
+  filter(cd %in% c("flat", "reward"), acc == 1) %>%
+  group_by(observer, bk, cd) %>%
   summarise(median_rt = median(rt), .groups = "drop") -> d_lmer_rt
 
 model_rt <- lmer(
-  median_rt ~ bk_ * cd_ + (1|observer), 
+  median_rt ~ bk * cd + (1|observer), 
   data =  d_lmer_rt)  
 
 summary(model_rt)
@@ -801,17 +786,21 @@ anova(model_rt)
 
 ```{r exp_reward_lmr_see, cache = TRUE}
 d_strat %>%
-  select(observer,  bk_ = "block", cd_ = "condition", t, prop_hetero) %>%
-   group_by(observer, bk_, cd_) %>%
+  select(observer,  bk, cd, t, prop_hetero) %>%
+   group_by(observer, bk, cd) %>%
   summarise(median_search_ef = median(prop_hetero), .groups = "drop") -> d_lmer_se
 
 model_se <- lmer(
-  median_search_ef ~ bk_ * cd_ + (1|observer), 
+  median_search_ef ~ bk * cd + (1|observer), 
   data =  d_lmer_se)  
 
 summary(model_se)
 anova(model_se)
 ```
+
+### Discussion
+
+The results are consistent with the analysis presented in the paper
 
 # Time-course Analysis
 
@@ -824,25 +813,25 @@ my_col <- c("#CC6677", "#4477AA", "#AA4499", "#117733")
 
 plot_model_predictions <- function(df = dat_m, my_model, rfp = rolling_fix_prop)
 {
-	df %>% modelr::data_grid(condition, block, ts, n) %>%
+	df %>% modelr::data_grid(cd, bk, ts, n) %>%
     filter(
-      !(block == "block 1" & condition %in% c("transfer", "reward")),
-      !(block == "block 1" & ts >= 1 ),
-      !(block == "block 2" & ts < 1 ),) %>%
+      !(bk == "block 1" & cd %in% c("transfer", "reward")),
+      !(bk == "block 1" & ts >= 1 ),
+      !(bk == "block 2" & ts < 1 ),) %>%
 		add_fitted_draws(my_model, re_formula = NA) %>%
     mutate(
-      condition = as_factor(condition),
-      condition = fct_relevel(condition, "baseline", "brief", "transfer", "reward"),
+      cd = as_factor(cd),
+      cd = fct_relevel(cd, "baseline", "brief", "transfer", "reward"),
       n = as.character(n),
       n = paste("fixation", n),
       ) %>%
 		ggplot(
 			aes(
 				x = ts*96, y = .value,
-				colour = condition, fill = condition)) +
+				colour = cd, fill = cd)) +
 		geom_hline(yintercept = 0.5, linetype = 2) +
 		stat_lineribbon(aes(y = .value), .width = c(0.90, .50), alpha = 1/4, size =0.5) +
-		facet_grid(condition ~ n) +
+		facet_grid(cd ~ n) +
 		geom_vline(xintercept = c(96, 97), size = 1, colour = "darkgrey") +
 		geom_path(
 			data = rfp,
@@ -866,19 +855,19 @@ plot_model_predictions <- function(df = dat_m, my_model, rfp = rolling_fix_prop)
 dat_fix %>% 
   left_join(
     dat_rt_acc,
-    by = c("observer", "condition", "block", "t")) %>%
+    by = c("observer", "cd", "bk", "t")) %>%
 	filter(
 		acc == 1,
 		targ_side == "absent")  %>%
   mutate(
-    condition = as.character(condition),
-    condition = if_else(
-      condition == "long" & block == "block 1", "baseline", condition),
-    condition = if_else(
-      condition == "long" & block == "block 2", "transfer", condition),
-    condition = if_else(
-      condition == "flat", "baseline", condition),
-    condition = as_factor(condition),
+    cd = as.character(cd),
+    cd = if_else(
+      cd == "long" & bk == "block 1", "baseline", cd),
+    cd = if_else(
+      cd == "long" & bk == "block 2", "transfer", cd),
+    cd = if_else(
+      cd == "flat", "baseline", cd),
+    cd = as_factor(cd),
     n = as.factor(n)) -> d_strat
 ```
 
@@ -889,13 +878,13 @@ source("prop_rolling_mean.R")
 
 ## Prior Predictions
 
-```{r timecourse-prior, cache=TRUE, echo = TRUE}
+```{r timecourse-prior, cache=TRUE, echo = TRUE, message = FALSE}
 model_priors <- c(
 	prior(normal(0, 1.0), class = "b"))
 
 m_prior <- brm(
 	data = d_strat,
-	hetero_fix ~ (0 + condition) * (0 + n) * block * ts  + 
+	hetero_fix ~ (0 + cd) * (0 + n) * bk * ts  + 
 	  (ts + n | observer) ,
 	family = "bernoulli",
 	sample_prior = "only",
@@ -915,11 +904,11 @@ plot_model_predictions(d_strat, m_prior, rolling_fix_prop)
 ```{r timecourse-posterior, cache=TRUE, echo = TRUE}
 m_posterior <- brm(
 	data = d_strat,
-	hetero_fix ~ (0 + condition) * (0 + n) * block * ts  + 
+	hetero_fix ~ (0 + cd) * (0 + n) * bk * ts  + 
 	 (ts + n | observer) ,
 	family = "bernoulli",
 	prior = model_priors,
-	chains = 1)
+	chains = 4)
 
 m_posterior <- add_criterion(m_posterior, c("loo", "waic"))
 
@@ -940,14 +929,14 @@ ggsave("plots/timecourse_post.png", width = 8, height = 5)
 
 I now fit simpler models, removing either one of the four variables, or the four-way interaction.
 
-```{r timecourse-posterior-drop-cd, cache=TRUE}
+```{r timecourse-posterior-drop-cd, cache=TRUE, message=FALSE}
 m_posterior_drop_cd <- brm(
 	data = d_strat,
-	hetero_fix ~  (0 + n) * block * ts  +
+	hetero_fix ~  (0 + n) * bk * ts  +
 	(ts + n | observer) ,
 	family = "bernoulli",
 	prior = model_priors,
-	chains = 1)
+	chains = 4)
 
 m_posterior_drop_cd <- add_criterion(m_posterior_drop_cd, c("loo", "waic"))
 
@@ -956,14 +945,14 @@ m_posterior_drop_cd <- readRDS("models/my_posterior_drop_cd.model")
 
 ```
 
-```{r timecourse-posterior-drop-bk, cache=TRUE}
+```{r timecourse-posterior-drop-bk, cache=TRUE, message=FALSE}
 m_posterior_drop_bk <- brm(
 	data = d_strat,
-	hetero_fix ~ (0 + condition) * (0 + n) * ts  + 
+	hetero_fix ~ (0 + cd) * (0 + n) * ts  + 
 	(ts + n | observer) ,
 	family = "bernoulli",
 	prior = model_priors,
-	chains = 1)
+	chains = 4)
 
 m_posterior_drop_bk <- add_criterion(m_posterior_drop_bk, c("loo", "waic"))
 
@@ -972,14 +961,14 @@ m_posterior_drop_bk <- readRDS("models/my_posterior_drop_bk.model")
 
 ```
 
-```{r timecourse-posterior-drop-n, cache=TRUE}
+```{r timecourse-posterior-drop-n, cache=TRUE, message=FALSE}
 m_posterior_drop_n <- brm(
 	data = d_strat,
-	hetero_fix ~ (0 + condition) * block * ts  + 
+	hetero_fix ~ (0 + cd) * bk * ts  + 
 	(ts + n | observer) ,
 	family = "bernoulli",
 	prior = model_priors,
-	chains = 1)
+	chains = 4)
 
 m_posterior_drop_n <- add_criterion(m_posterior_drop_n, c("loo", "waic"))
 
@@ -988,14 +977,14 @@ m_posterior_drop_n <- readRDS("models/my_posterior_drop_n.model")
 
 ```
 
-```{r timecourse-posterior-drop-t, cache=TRUE, echo = TRUE}
+```{r timecourse-posterior-drop-t, cache=TRUE, echo = TRUE, message=FALSE}
 m_posterior_drop_t <- brm(
 	data = d_strat,
-	hetero_fix ~ (0 + condition) * (0 + n) * block + 
+	hetero_fix ~ (0 + cd) * (0 + n) * bk + 
 	 (ts + n | observer) ,
 	family = "bernoulli",
 	prior = model_priors,
-	chains = 1)
+	chains = 4)
 
 m_posterior_drop_t <- add_criterion(m_posterior_drop_t, c("loo", "waic"))
 
@@ -1003,34 +992,30 @@ saveRDS(m_posterior_drop_t, "models/my_posterior_drop_t.model")
 m_posterior_drop_t <- readRDS("models/my_posterior_drop_t.model")
 ```
 
-### Can we remove the 4 way interaction?
 
-```{r timecourse-posterior-drop4, cache=TRUE}
-m_posterior_drop4 <- brm(
-	data = d_strat,
-	hetero_fix ~ (0 + condition) * (0 +n) * block * ts - ((0+ condition):(0 + n):block:ts) +
-	 (ts + n | observer) ,
-	family = "bernoulli",
-	prior = model_priors,
-	chains = 1)
-
-saveRDS(m_posterior_drop4, "models/my_posterior_drop4.model")
-m_posterior_drop4 <- add_criterion(m_posterior_drop4, c("loo", "waic"))
-
-m_posterior_drop4 <- readRDS("models/my_posterior_drop4.model")
-
-```
-
-```{r}
+```{r modelweights, cache = TRUE}
 mw <- model_weights(
   m_posterior, 
   m_posterior_drop_cd, 
   m_posterior_drop_bk,
   m_posterior_drop_t,
-  m_posterior_drop_n,
-  m_posterior_drop4)
+  m_posterior_drop_n)
 
 mw %>% knitr::kable()
 
 plot(mw)
+```
+
+```{r}
+sum(str_count(get_variables(m_posterior), "b_"))
+sum(str_count(get_variables(m_posterior_drop_cd), "b_"))
+sum(str_count(get_variables(m_posterior_drop_bk), "b_"))
+sum(str_count(get_variables(m_posterior_drop_t), "b_"))
+sum(str_count(get_variables(m_posterior_drop_n), "b_"))
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
 ```

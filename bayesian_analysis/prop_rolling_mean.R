@@ -2,7 +2,7 @@ library(RcppRoll)
 
 windowed_mean <- function(df, blk, dl, nf, ws) {
   
-	x <- filter(df, block == blk, condition == cd, n == nf)$mean_hetero_fix
+	x <- filter(df, bk == blk, cd == cd, n == nf)$mean_hetero_fix
   	length(x)
   	return(roll_mean(x , n = ws, align = "center"))
 }
@@ -14,7 +14,7 @@ rolling_fix_prop <- tibble(
 	n = as.character(),
 	prop_fix = as.numeric())
 
-dat_agg <- d_strat %>% group_by(block, condition, t, n) %>%
+dat_agg <- d_strat %>% group_by(bk, cd, t, n) %>%
   summarise(mean_hetero_fix = mean(hetero_fix), .groups = "drop")
 
 ws <- 11
@@ -31,8 +31,8 @@ for (cd in levels(dat_agg$condition))
     
     			rolling_fix_prop %>% bind_rows(
     				tibble(
-    					block = blk, 
-    					condition = cd, 
+    					bk = blk, 
+    					cd = cd, 
     					t = 1:length(wf) + (ws+1)/2,
     					n = paste("fixation", n), 
     					prop_fix = wf)) -> rolling_fix_prop

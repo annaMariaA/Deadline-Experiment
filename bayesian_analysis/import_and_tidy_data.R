@@ -49,9 +49,11 @@ bind_rows(deadline_dat, reward_dat) %>%
 			heterogeneous = "heterogenous",
 			homogeneous = "homogenous"),
 		t = as.numeric(t),
-		t = if_else(block == "block 2", t + 96, t))  -> dat_rt_acc
+		t = if_else(block == "block 2", t + 96, t)) %>% 
+  rename(cd = "condition", bk = "block") -> dat_rt_acc
 
 rm(deadline_dat, reward_dat)
+write_csv(dat_rt_acc, "dat_acc_rt.csv")
 
 ### Read in fixation data
 # read Deadline data
@@ -101,7 +103,6 @@ reward_dat %>%
 	mutate(
 	  observer = paste("r", observer, sep = "")) -> reward_dat
 
-
 bind_rows(deadline_dat, reward_dat) %>%
 	filter(n > 1, n < 7) %>%
 	mutate(
@@ -114,6 +115,8 @@ bind_rows(deadline_dat, reward_dat) %>%
 		block = fct_recode(block, "block 1" = " 1", "block 2" = " 2"),
 		t = if_else(block == "block 2", t + 96, t),
 		ts = (t-1)/96) %>%
-	select(-side) -> dat_fix
+	select(-side) %>%
+  rename(cd = "condition", bk = "block") -> dat_fix
 
 rm(reward_dat, deadline_dat)
+write_csv(dat_fix, "dat_fix.csv")
