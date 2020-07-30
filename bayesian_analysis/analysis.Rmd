@@ -3,7 +3,7 @@ title: "Supplementary Materials: Search strategies improve with practice, but no
 author: "ADF Clarke"
 date: "30/06/2020"
 output: 
-  bookdown::html_document2:
+  bookdown::pdf_book:
     theme: journal
     toc: true
 ---
@@ -27,8 +27,8 @@ options(mc.cores = parallel::detectCores())
 
 # import data
 # source("import_and_tidy_data.R")
-dat_rt_acc <- read_csv("dat_acc_rt.csv")
-dat_fix <- read_csv("dat_fix.csv")
+  dat_rt_acc <- read_csv("dat_acc_rt.csv")
+  dat_fix <- read_csv("dat_fix.csv")
 ```
 
 These supplementary materials contain more details of the Bayesian analysis, including power analysis. Please see the source Rmd file for full code. 
@@ -672,7 +672,7 @@ d_pwr_reward  %>%
 d_pwr_reward  %>% summarise(over_90 = sum(power > 0.9), .groups = "drop")
 
 d_pwr_reward  <- sample_reward_data(n_obs, n_trls)
-d_pwr_reward  %>% group_by(cd) %>% summarise(mean_ph = mean(prop_hetero))
+d_pwr_reward  %>% group_by(cd) %>% summarise(mean_ph = mean(prop_hetero), .groups = "drop")
 ```
 
 ## Now refit model using data
@@ -901,7 +901,7 @@ plot_model_predictions(d_strat, m_prior, rolling_fix_prop)
 
 ## Posterior Predictions
 
-```{r timecourse-posterior, cache=TRUE, echo = TRUE}
+```{r timecourse-posterior, cache=TRUE, echo = TRUE, message = FALSE}
 m_posterior <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * (0 + n) * bk * ts  + 
@@ -925,11 +925,16 @@ plot_model_predictions(d_strat, m_posterior, rolling_fix_prop)
 ggsave("plots/timecourse_post.png", width = 8, height = 5)
 ```
 
+```{r}
+summary(d_strat)
+
+```
+
 ## Can we easily simplify the model?
 
 I now fit simpler models, removing either one of the four variables, or the four-way interaction.
 
-```{r timecourse-posterior-drop-cd, cache=TRUE, message=FALSE}
+```{r timecourse-posterior-drop-cd}
 m_posterior_drop_cd <- brm(
 	data = d_strat,
 	hetero_fix ~  (0 + n) * bk * ts  +
@@ -961,7 +966,7 @@ m_posterior_drop_bk <- readRDS("models/my_posterior_drop_bk.model")
 
 ```
 
-```{r timecourse-posterior-drop-n, cache=TRUE, message=FALSE}
+```{r timecourse-posterior-drop-n}
 m_posterior_drop_n <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * bk * ts  + 
@@ -977,7 +982,7 @@ m_posterior_drop_n <- readRDS("models/my_posterior_drop_n.model")
 
 ```
 
-```{r timecourse-posterior-drop-t, cache=TRUE, echo = TRUE, message=FALSE}
+```{r timecourse-posterior-drop-t}
 m_posterior_drop_t <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * (0 + n) * bk + 
@@ -996,23 +1001,23 @@ m_posterior_drop_t <- readRDS("models/my_posterior_drop_t.model")
 ```{r modelweights, cache = TRUE}
 mw <- model_weights(
   m_posterior, 
-  m_posterior_drop_cd, 
   m_posterior_drop_bk,
   m_posterior_drop_t,
+  m_posterior_drop_cd, 
   m_posterior_drop_n)
 
+# add a count of the number of paremters for the fixed effects
+mw$n = c(
+  sum(str_count(get_variables(m_posterior), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_bk), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_t), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_cd), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_n), "b_"))
+)
+
 mw %>% knitr::kable()
-
-plot(mw)
 ```
 
-```{r}
-sum(str_count(get_variables(m_posterior), "b_"))
-sum(str_count(get_variables(m_posterior_drop_cd), "b_"))
-sum(str_count(get_variables(m_posterior_drop_bk), "b_"))
-sum(str_count(get_variables(m_posterior_drop_t), "b_"))
-sum(str_count(get_variables(m_posterior_drop_n), "b_"))
-```
 
 # Session Info
 
