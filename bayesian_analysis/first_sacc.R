@@ -20,9 +20,15 @@ dat_fix <- read_csv("dat_fix.csv")
 
 
 d_sacc1 <- filter(dat_fix, n == 1) %>%
-  select(-n, hetero_fix, ts)
+  select(-n, -hetero_fix, -ts)
 
 d_fix2 <- filter(dat_fix, n== 2) %>%
-  select(-n, -duration)
+  select(-n, -duration, -ts)
 
-d_init_sacc <- fUll_join(d_sacc1, d_fix2)
+d_init_sacc <- full_join(d_sacc1, d_fix2) %>%
+  filter(is.finite(hetero_fix)) %>%
+  mutate(
+    saccade_to = if_else(hetero_fix == 1, "heterogeneous", "homogeneous"),
+    observer = as_factor(observer))
+
+d_init_sacc %>% ggplot(aes(x = duration, fill = saccade_to)) + geom_histogram(bins = 50) + facet_wrap(~cd)
