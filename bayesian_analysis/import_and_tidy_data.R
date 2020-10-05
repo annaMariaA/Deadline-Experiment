@@ -122,6 +122,19 @@ bind_rows(deadline_dat, reward_dat) %>%
 	select(-side) %>%
   rename(cd = "condition", bk = "block") -> dat_fix
 
+bind_rows(deadline_dat, reward_dat) %>%
+  mutate(condition = as_factor(condition),
+    condition = fct_recode(condition, 
+                           long = "U", flat = "f", brief = "T", reward = "r"),
+    condition = fct_relevel(condition, "long", "flat", "brief", "reward"),
+    hetero_fix = as.numeric(side == "hetero"),
+    block = as_factor(block),
+    block = fct_recode(block, "block 1" = " 1", "block 2" = " 2"),
+    t = if_else(block == "block 2", t + 96, t),
+    ts = (t-1)/96) %>%
+  select(-side) %>%
+  rename(cd = "condition", bk = "block") -> dat_fix_all_fix
+
 rm(reward_dat, deadline_dat)
 write_csv(dat_fix, "dat_fix.csv")
-
+write_csv(dat_fix_all_fix, "dat_fix_all.csv")

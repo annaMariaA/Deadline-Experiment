@@ -18,6 +18,7 @@ knitr::opts_chunk$set(fig.height = 4, fig.align = 'center')
 
 library(brms)
 library(tidyverse)
+
 library(tidybayes)
 library(patchwork)
 library(lmerTest)
@@ -395,12 +396,12 @@ We can conclude that $p(x>0 | d) = $ `r pxd[1]`.
 dat_rt_acc %>% filter(cd %in% c("flat", "reward")) %>%
 	group_by(observer, bk, cd, targ_side) %>%
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = bk, y = accuracy, fill = cd)) +
+	ggplot(aes(x = bk, y = accuracy*100, fill = cd)) +
 	geom_boxplot(alpha = 0.25) +
 	facet_wrap(~ targ_side) +
 	theme_bw() +
-  scale_fill_manual(values = c("#CC6677", "#117733")) +
-	scale_y_continuous(limits = c(0, 1))  -> p_acc
+  scale_fill_manual(values = c("#CC6677", "#117733")) + labs(fill = "condition")+
+	scale_y_continuous(limits = c(0, 100), name="accuracy (%)")  -> p_acc
 ```
 
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
@@ -413,13 +414,13 @@ dat_rt_acc %>% filter(cd %in% c("flat", "reward"), acc == 1) %>%
 	geom_boxplot(alpha = 0.25) +
 	facet_wrap(~ targ_side) +
 	theme_bw() +
-  scale_fill_manual(values = c("#CC6677", "#117733")) +
-	scale_y_log10("median rt", breaks = c(1,2,4,8,16))  -> p_rt
+  scale_fill_manual(values = c("#CC6677", "#117733")) + labs(fill = "condition")+
+	scale_y_log10("median rt (s)", breaks = c(1,2,4,8,16))  -> p_rt
 ```
 
 ```{r}
 p_acc / p_rt
-ggsave("plots/exp_reward_acc_rt.png", p_acc / p_rt + plot_layout(guides = "collect"), width = 8, height = 5)
+ggsave("exp_reward_acc_rt.png", p_acc / p_rt + plot_layout(guides = "collect"), width = 8, height = 5)
 ```
 
 ## Saccadic Strategy
@@ -1025,4 +1026,32 @@ mw %>% knitr::kable()
 
 ```{r}
 sessionInfo()
+```
+
+```{r}
+dat_fix_all_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "cd", "bk", "t")) %>% 
+	filter( acc == 1)%>%
+	group_by(targ_side, cd) %>%
+	summarise(max_fix_no = max(n), mean_fix_no= mean(n), .groups = 'drop')%>%
+  knitr::kable("html", digits= 4) %>% kableExtra::kable_styling()->table_means
+```
+#inverse effciency score (IES) RT/proportion correct
+```{r}
+dat_rt_acc %>% 
+  mutate(cd = fct_relevel(cd, "long")) %>%
+	group_by( cd, targ_side,observer) %>% 
+	summarise(accuracy = mean(acc),
+	          rt_median=median(rt),.groups = 'drop') %>%
+  mutate(IES=rt_median/accuracy)%>%
+	ggplot(aes(x = cd, y = IES, fill = fct_rev(cd))) + 
+  	geom_boxplot(alpha = 0.25) +
+  	facet_wrap(~ targ_side) +
+  	theme_bw() + 
+    ggthemes::scale_fill_ptol() +
+    scale_x_discrete("condition") +
+  	scale_y_continuous(limits = c(0, 25), name="Inverse Effciency score(RT/Prop. Correct)") +
+    theme(legend.position = "none") -> IES
+ggsave("plots/inverse_efficiency_score.png", IES, width = 8, height = 5)
+
 ```
