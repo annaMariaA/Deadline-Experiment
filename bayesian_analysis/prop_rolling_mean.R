@@ -9,7 +9,7 @@ windowed_mean <- function(df, blk, dl, nf, ws) {
 
 rolling_fix_prop <- tibble(
 	block = as.character(), 
-	condition = as.character(),
+	cd = as.character(),
 	t = as.numeric(),
 	n = as.character(),
 	prop_fix = as.numeric())
@@ -19,7 +19,7 @@ dat_agg <- d_strat %>% group_by(bk, cd, t, n) %>%
 
 ws <- 11
 
-for (cd in levels(dat_agg$condition)) 
+for (cd in levels(dat_agg$cd)) 
   {
   for (n in unique(dat_agg$n))
     {

@@ -3,7 +3,7 @@ title: "Supplementary Materials: Search strategies improve with practice, but no
 author: "ADF Clarke"
 date: "30/06/2020"
 output: 
-  bookdown::html_document2:
+  bookdown::pdf_book:
     theme: journal
     toc: true
 ---
@@ -27,17 +27,17 @@ options(mc.cores = parallel::detectCores())
 
 # import data
 # source("import_and_tidy_data.R")
-dat_rt_acc <- read_csv("dat_acc_rt.csv")
-dat_fix <- read_csv("dat_fix.csv")
+  dat_rt_acc <- read_csv("dat_acc_rt.csv")
+  dat_fix <- read_csv("dat_fix.csv") %>% filter(n > 1)
 ```
 
 These supplementary materials contain more details of the Bayesian analysis, including power analysis. Please see the source Rmd file for full code. 
 
 # Experiment 1: Deadline
 
-We will first look at descriptive statistics for accuracy and reaction time data, to check that it looks sensible and inline with our expectations. 
-
 ## Descriptive Statistics
+
+We will first look at descriptive statistics for accuracy and reaction time data, to check that it looks sensible and inline with our expectations. 
 
 ### Accuracy and Reaction Time
 
@@ -47,12 +47,13 @@ dat_rt_acc %>%
   mutate(cd = fct_relevel(cd, "long")) %>%
 	group_by(observer, cd, targ_side) %>% 
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = cd, y = accuracy*100, fill = fct_rev(cd))) + 
+	ggplot(aes(x = cd, y = accuracy, fill = fct_rev(cd))) + 
   	geom_boxplot(alpha = 0.25) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
-  	scale_y_continuous(limits = c(0, 100), name="accuracy(%)") +
+    scale_x_discrete("condition") +
+  	scale_y_continuous(limits = c(0, 1)) +
     theme(legend.position = "none") -> p_acc
 ```
 
@@ -70,15 +71,14 @@ dat_rt_acc %>%
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
-  	scale_y_log10("median rt (s)", breaks = c(1,2,4,8,16)) +
+    scale_x_discrete("condition") +
+  	scale_y_log10("median rt", breaks = c(1,2,4,8,16)) +
     theme(legend.position = "none") -> p_rt
 ```
 
 ```{r}
 p_acc / p_rt
 ggsave("plots/exp_deadline_acc_rt.png", p_acc / p_rt, width = 8, height = 5)
-ggsave("exp_deadline_acc_rt.png", p_acc / p_rt, width = 8, height = 5)
-
 ```
 
 ### Saccadic Strategy
@@ -113,7 +113,7 @@ d_strat %>%
 
 We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 6) fixations made by an observer over all trials. 
 
-```{r fig.height=5}
+```{r fig.height=4}
 d_strat %>% group_by(observer, cd) %>%
 	summarise(strategy = mean(prop_hetero), .groups = "drop") %>%
 	ggplot(aes(x = cd, y = strategy, colour = fct_rev(cd), fill = fct_rev(cd))) + 
@@ -191,7 +191,7 @@ model_priors <- c(
 	prior(normal(0, 1), class = "b"))
 ```
 
-```{r exp1modelprior, cache=TRUE, echo = TRUE, message = FALSE}
+```{r exp1modelprior, cache=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
 prior_model <- brm(
 	data = d_strat,
 	prop_hetero ~ 0 + cd + (cd | observer),
@@ -674,7 +674,7 @@ d_pwr_reward  %>%
 d_pwr_reward  %>% summarise(over_90 = sum(power > 0.9), .groups = "drop")
 
 d_pwr_reward  <- sample_reward_data(n_obs, n_trls)
-d_pwr_reward  %>% group_by(cd) %>% summarise(mean_ph = mean(prop_hetero))
+d_pwr_reward  %>% group_by(cd) %>% summarise(mean_ph = mean(prop_hetero), .groups = "drop")
 ```
 
 ## Now refit model using data
@@ -903,7 +903,7 @@ plot_model_predictions(d_strat, m_prior, rolling_fix_prop)
 
 ## Posterior Predictions
 
-```{r timecourse-posterior, cache=TRUE, echo = TRUE}
+```{r timecourse-posterior, cache=TRUE, echo = TRUE, message = FALSE}
 m_posterior <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * (0 + n) * bk * ts  + 
@@ -927,11 +927,16 @@ plot_model_predictions(d_strat, m_posterior, rolling_fix_prop)
 ggsave("plots/timecourse_post.png", width = 8, height = 5)
 ```
 
+```{r}
+summary(d_strat)
+
+```
+
 ## Can we easily simplify the model?
 
 I now fit simpler models, removing either one of the four variables, or the four-way interaction.
 
-```{r timecourse-posterior-drop-cd, cache=TRUE, message=FALSE}
+```{r timecourse-posterior-drop-cd, cache=TRUE}
 m_posterior_drop_cd <- brm(
 	data = d_strat,
 	hetero_fix ~  (0 + n) * bk * ts  +
@@ -963,7 +968,7 @@ m_posterior_drop_bk <- readRDS("models/my_posterior_drop_bk.model")
 
 ```
 
-```{r timecourse-posterior-drop-n, cache=TRUE, message=FALSE}
+```{r timecourse-posterior-drop-n}
 m_posterior_drop_n <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * bk * ts  + 
@@ -979,7 +984,7 @@ m_posterior_drop_n <- readRDS("models/my_posterior_drop_n.model")
 
 ```
 
-```{r timecourse-posterior-drop-t, cache=TRUE, echo = TRUE, message=FALSE}
+```{r timecourse-posterior-drop-t}
 m_posterior_drop_t <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * (0 + n) * bk + 
@@ -998,149 +1003,26 @@ m_posterior_drop_t <- readRDS("models/my_posterior_drop_t.model")
 ```{r modelweights, cache = TRUE}
 mw <- model_weights(
   m_posterior, 
-  m_posterior_drop_cd, 
   m_posterior_drop_bk,
   m_posterior_drop_t,
+  m_posterior_drop_cd, 
   m_posterior_drop_n)
 
+# add a count of the number of paremters for the fixed effects
+mw$n = c(
+  sum(str_count(get_variables(m_posterior), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_bk), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_t), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_cd), "b_")),
+  sum(str_count(get_variables(m_posterior_drop_n), "b_"))
+)
+
 mw %>% knitr::kable()
-
-plot(mw)
 ```
 
-```{r}
-sum(str_count(get_variables(m_posterior), "b_"))
-sum(str_count(get_variables(m_posterior_drop_cd), "b_"))
-sum(str_count(get_variables(m_posterior_drop_bk), "b_"))
-sum(str_count(get_variables(m_posterior_drop_t), "b_"))
-sum(str_count(get_variables(m_posterior_drop_n), "b_"))
-```
 
 # Session Info
 
 ```{r}
 sessionInfo()
-```
-correlation between strategy and RT deadline
-```{r}
-#strategy in the long condition only, target absent trials
-dat_fix %>% left_join(dat_rt_acc, 
-                      by = c("observer", "cd", "bk", "t")) %>% 
-	filter(
-		cd %in% c("long"), 
-		acc == 1,
-		targ_side == "absent") %>%
-	group_by(observer, cd) %>%
-	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
-```
-```{r}
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("long"), 
-    acc == 1,
-    targ_side=="absent") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("long"), 
-    acc == 1,
-    targ_side=="homogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("long"), 
-    acc == 1,
-    targ_side=="heterogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous
-
-cor_strat_abs_RT <- cor.test(d_strat$prop_hetero, rt_absent$median_rt)
-cor_strat_hom_RT <- cor.test(d_strat$prop_hetero, rt_homogeneous$median_rt)
-cor_strat_het_RT <- cor.test(d_strat$prop_hetero, rt_heterogeneous$median_rt)
-```
-correlation between strategy and RT reward
-```{r}
-#strategy in the flat condition only, target absent trials
-dat_fix %>% left_join(dat_rt_acc, 
-                      by = c("observer", "cd", "bk", "t")) %>% 
-	filter(
-		cd %in% c("flat"), 
-		acc == 1,
-		targ_side == "absent") %>%
-	group_by(observer, cd) %>%
-	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat_f
-```
-```{r}
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("flat"), 
-    acc == 1,
-    targ_side=="absent") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent_f
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("flat"), 
-    acc == 1,
-    targ_side=="homogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous_f
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("flat"), 
-    acc == 1,
-    targ_side=="heterogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous_f
-
-cor_strat_abs_RT_f <- cor.test(d_strat_f$prop_hetero, rt_absent_f$median_rt)
-cor_strat_hom_RT_f <- cor.test(d_strat_f$prop_hetero, rt_homogeneous_f$median_rt)
-cor_strat_het_RT_f <- cor.test(d_strat_f$prop_hetero, rt_heterogeneous_f$median_rt)
-#strategy in the reward condition only, target absent trials
-dat_fix %>% left_join(dat_rt_acc, 
-                      by = c("observer", "cd", "bk", "t")) %>% 
-	filter(
-		cd %in% c("reward"), 
-		acc == 1,
-		targ_side == "absent") %>%
-	group_by(observer, cd) %>%
-	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat_r
-```
-```{r}
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("reward"), 
-    acc == 1,
-    targ_side=="absent") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent_r
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("reward"), 
-    acc == 1,
-    targ_side=="homogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous_r
-
-dat_rt_acc %>% 
-  filter(
-    cd %in% c("reward"), 
-    acc == 1,
-    targ_side=="heterogeneous") %>%	
-	group_by(observer) %>% 
-	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous_r
-
-cor_strat_abs_RT_r <- cor.test(d_strat_r$prop_hetero, rt_absent_r$median_rt)
-cor_strat_hom_RT_r <- cor.test(d_strat_r$prop_hetero, rt_homogeneous_r$median_rt)
-cor_strat_het_RT_r <- cor.test(d_strat_r$prop_hetero, rt_heterogeneous_r$median_rt)
 ```

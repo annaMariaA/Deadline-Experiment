@@ -37,6 +37,7 @@ reward_dat %>%
 	  observer = paste("r", observer, sep = "")) -> reward_dat
 
 
+
 bind_rows(deadline_dat, reward_dat) %>%
 	mutate(
 		condition = as_factor(condition),
@@ -69,7 +70,6 @@ reward_dat = (reward_dat[!(reward_dat$subj%in% subjectsToRemove),])
 reward_dat$subj = as.factor(reward_dat$subj)
 rm(subjectsToRemove)
 
-
 assign_fixation_side <- function(df) {
 	# classify every fixation as homo (right), central, or hetero (left)
 	centralWidth = 64 #change to 1 visual degree
@@ -90,22 +90,25 @@ deadline_dat %>%
 		block = "completed",
 		t = "trial", 
 		n = "fixNum",
-		side) %>%
+		side,
+		duration = fixDur) %>%
 	mutate(observer = paste("d", observer, sep = ""))-> deadline_dat
 
 reward_dat %>% 
+  mutate(duration = fixOff - fixOn) %>%
 	select(
 		observer = "subj", 
 		condition = "incentive", 
 		block,
 		t = "trialNum", 
 		n = "fixNum",
-		side) %>%
+		side,
+		duration) %>%
 	mutate(
 	  observer = paste("r", observer, sep = "")) -> reward_dat
 
 bind_rows(deadline_dat, reward_dat) %>%
-	filter(n > 1, n < 7) %>%
+	filter(n < 7) %>%
 	mutate(
 		condition = as_factor(condition),
 		condition = fct_recode(condition, 
