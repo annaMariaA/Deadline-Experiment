@@ -47,12 +47,12 @@ dat_rt_acc %>%
   mutate(cd = fct_relevel(cd, "long")) %>%
 	group_by(observer, cd, targ_side) %>% 
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = cd, y = accuracy, fill = fct_rev(cd))) + 
+	ggplot(aes(x = cd, y = accuracy*100, fill = fct_rev(cd))) + 
   	geom_boxplot(alpha = 0.25) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
-  	scale_y_continuous(limits = c(0, 1)) +
+  	scale_y_continuous(limits = c(0, 100), name="accuracy(%)") +
     theme(legend.position = "none") -> p_acc
 ```
 
@@ -70,13 +70,15 @@ dat_rt_acc %>%
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
-  	scale_y_log10("median rt", breaks = c(1,2,4,8,16)) +
+  	scale_y_log10("median rt (s)", breaks = c(1,2,4,8,16)) +
     theme(legend.position = "none") -> p_rt
 ```
 
 ```{r}
 p_acc / p_rt
 ggsave("plots/exp_deadline_acc_rt.png", p_acc / p_rt, width = 8, height = 5)
+ggsave("exp_deadline_acc_rt.png", p_acc / p_rt, width = 8, height = 5)
+
 ```
 
 ### Saccadic Strategy
@@ -1018,4 +1020,127 @@ sum(str_count(get_variables(m_posterior_drop_n), "b_"))
 
 ```{r}
 sessionInfo()
+```
+correlation between strategy and RT deadline
+```{r}
+#strategy in the long condition only, target absent trials
+dat_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "cd", "bk", "t")) %>% 
+	filter(
+		cd %in% c("long"), 
+		acc == 1,
+		targ_side == "absent") %>%
+	group_by(observer, cd) %>%
+	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat
+```
+```{r}
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("long"), 
+    acc == 1,
+    targ_side=="absent") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("long"), 
+    acc == 1,
+    targ_side=="homogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("long"), 
+    acc == 1,
+    targ_side=="heterogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous
+
+cor_strat_abs_RT <- cor.test(d_strat$prop_hetero, rt_absent$median_rt)
+cor_strat_hom_RT <- cor.test(d_strat$prop_hetero, rt_homogeneous$median_rt)
+cor_strat_het_RT <- cor.test(d_strat$prop_hetero, rt_heterogeneous$median_rt)
+```
+correlation between strategy and RT reward
+```{r}
+#strategy in the flat condition only, target absent trials
+dat_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "cd", "bk", "t")) %>% 
+	filter(
+		cd %in% c("flat"), 
+		acc == 1,
+		targ_side == "absent") %>%
+	group_by(observer, cd) %>%
+	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat_f
+```
+```{r}
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("flat"), 
+    acc == 1,
+    targ_side=="absent") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent_f
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("flat"), 
+    acc == 1,
+    targ_side=="homogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous_f
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("flat"), 
+    acc == 1,
+    targ_side=="heterogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous_f
+
+cor_strat_abs_RT_f <- cor.test(d_strat_f$prop_hetero, rt_absent_f$median_rt)
+cor_strat_hom_RT_f <- cor.test(d_strat_f$prop_hetero, rt_homogeneous_f$median_rt)
+cor_strat_het_RT_f <- cor.test(d_strat_f$prop_hetero, rt_heterogeneous_f$median_rt)
+#strategy in the reward condition only, target absent trials
+dat_fix %>% left_join(dat_rt_acc, 
+                      by = c("observer", "cd", "bk", "t")) %>% 
+	filter(
+		cd %in% c("reward"), 
+		acc == 1,
+		targ_side == "absent") %>%
+	group_by(observer, cd) %>%
+	summarise(prop_hetero = mean(hetero_fix), .groups = 'drop') -> d_strat_r
+```
+```{r}
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("reward"), 
+    acc == 1,
+    targ_side=="absent") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_absent_r
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("reward"), 
+    acc == 1,
+    targ_side=="homogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_homogeneous_r
+
+dat_rt_acc %>% 
+  filter(
+    cd %in% c("reward"), 
+    acc == 1,
+    targ_side=="heterogeneous") %>%	
+	group_by(observer) %>% 
+	summarise(median_rt = median(rt), .groups = 'drop') -> rt_heterogeneous_r
+
+cor_strat_abs_RT_r <- cor.test(d_strat_r$prop_hetero, rt_absent_r$median_rt)
+cor_strat_hom_RT_r <- cor.test(d_strat_r$prop_hetero, rt_homogeneous_r$median_rt)
+cor_strat_het_RT_r <- cor.test(d_strat_r$prop_hetero, rt_heterogeneous_r$median_rt)
 ```

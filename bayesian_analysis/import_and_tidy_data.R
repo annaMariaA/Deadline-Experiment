@@ -1,8 +1,9 @@
 library(tidyverse)
 
 # Read in Acc and RT data
-deadline_dat <- as_tibble(readRDS("../data/processedRTandAccData.Rda"))
-reward_dat <- as_tibble(readRDS("../../Reward-Experiment/data/processedRTandAccData.Rda"))
+setwd("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment")
+deadline_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment/data/processedRTandAccData.Rda"))
+reward_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Reward-Experiment/data/processedRTandAccData.Rda"))
 
 subjectsToRemove = c(22,19,12)#22 and 19 accuracy on homogenous trials below 50%, 12 RT on homogenous trials over 8s
 reward_dat = (reward_dat[!(reward_dat$subj%in% subjectsToRemove),])
@@ -57,10 +58,10 @@ write_csv(dat_rt_acc, "dat_acc_rt.csv")
 
 ### Read in fixation data
 # read Deadline data
-deadline_dat <- as_tibble(readRDS("../data/processedFixData.Rda")) 
+deadline_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment/data/processedFixData.Rda")) 
 
 # get Reward data
-reward_dat <- as_tibble(readRDS("../../Reward-Experiment/data/processedFixData.Rda"))
+reward_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Reward-Experiment/data/processedFixData.Rda"))
 reward_dat %>% mutate(fixX  = fixXflipped + 512) -> reward_dat
 
 subjectsToRemove = c(22,19,12)#22 and 19 accuracy on homogenous trials below 50%, 12 RT on homogenous trials over 8s
@@ -120,3 +121,4 @@ bind_rows(deadline_dat, reward_dat) %>%
 
 rm(reward_dat, deadline_dat)
 write_csv(dat_fix, "dat_fix.csv")
+
