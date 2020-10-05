@@ -28,7 +28,7 @@ options(mc.cores = parallel::detectCores())
 # import data
 # source("import_and_tidy_data.R")
   dat_rt_acc <- read_csv("dat_acc_rt.csv")
-  dat_fix <- read_csv("dat_fix.csv")
+  dat_fix <- read_csv("dat_fix.csv") %>% filter(n > 1)
 ```
 
 These supplementary materials contain more details of the Bayesian analysis, including power analysis. Please see the source Rmd file for full code. 
@@ -42,7 +42,7 @@ We will first look at descriptive statistics for accuracy and reaction time data
 ### Accuracy and Reaction Time
 
 ```{r}
-dat_rt %>% 
+dat_rt_acc %>% 
   filter(cd %in% c("long", "brief")) %>%
   mutate(cd = fct_relevel(cd, "long")) %>%
 	group_by(observer, cd, targ_side) %>% 
@@ -60,7 +60,7 @@ dat_rt %>%
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
 
 ```{r}
-dat_rt %>% 
+dat_rt_acc %>% 
   filter(
     cd %in% c("long", "brief"), 
     acc == 1) %>%	
@@ -936,7 +936,7 @@ summary(d_strat)
 
 I now fit simpler models, removing either one of the four variables, or the four-way interaction.
 
-```{r timecourse-posterior-drop-cd}
+```{r timecourse-posterior-drop-cd, cache=TRUE}
 m_posterior_drop_cd <- brm(
 	data = d_strat,
 	hetero_fix ~  (0 + n) * bk * ts  +
