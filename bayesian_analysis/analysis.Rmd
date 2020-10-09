@@ -1033,7 +1033,7 @@ dat_fix_all_fix %>% left_join(dat_rt_acc,
                       by = c("observer", "cd", "bk", "t")) %>% 
 	filter( acc == 1)%>%
 	group_by(targ_side, cd) %>%
-	summarise(max_fix_no = max(n), mean_fix_no= mean(n), .groups = 'drop')%>%
+	summarise(max_fix_no = max(n), mean_fix_no= mean(n),mean_duration=mean(duration), .groups = 'drop')%>%
   knitr::kable("html", digits= 4) %>% kableExtra::kable_styling()->table_means
 ```
 #inverse effciency score (IES) RT/proportion correct
