@@ -457,7 +457,7 @@ plt_strat_obs <- d_strat %>%
 We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 6) fixations made by an observer over all trials. 
 
 ```{r fig.height=6}
-plt_strategy <- d_strat %>%
+d_strat %>%
   group_by(observer, bk, cd) %>%
 	summarise(strategy = mean(prop_hetero)) %>%
 	ggplot(aes(x = bk, y = strategy, fill = cd)) +
@@ -467,8 +467,7 @@ plt_strategy <- d_strat %>%
 	scale_fill_manual(values = c("#CC6677", "#117733")) +
   facet_wrap(~ cd) +
 	theme_bw() +
-	theme(legend.position = "none",
-		axis.title = element_blank()) +
+	theme(legend.position = "none") +
   ggtitle("(a) Empirical") -> plt_strategy
 
 plt_strat_obs + plt_strategy + plot_layout(widths = c(3, 1))
