@@ -48,14 +48,13 @@ dat_rt_acc %>%
   mutate(cd = fct_relevel(cd, "long")) %>%
 	group_by(observer, cd, targ_side) %>% 
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
-	ggplot(aes(x = cd, y = accuracy, fill = fct_rev(cd))) + 
-  	geom_boxplot(alpha = 0.25) +
+	ggplot(aes(x = cd, y = accuracy*100, fill = fct_rev(cd))) + 
+  	geom_boxplot(alpha = 0.25,show.legend = FALSE) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
     scale_x_discrete("condition") +
-  	scale_y_continuous(limits = c(0, 1)) +
-    theme(legend.position = "none") -> p_acc
+    scale_y_continuous("accuracy(%)",limits = c(0, 100)) -> p_acc
 ```
 
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
@@ -65,21 +64,22 @@ dat_rt_acc %>%
   filter(
     cd %in% c("long", "brief"), 
     acc == 1) %>%	
+    mutate(cd = fct_relevel(cd, "long")) %>%
 	group_by(observer, cd, targ_side) %>% 
 	summarise(median_rt = median(rt), .groups = 'drop') %>%
 	ggplot(aes(x = cd, y = median_rt, fill = fct_rev(cd))) + 
-  	geom_boxplot(alpha = 0.25) +
+  	geom_boxplot(alpha = 0.25,show.legend = FALSE) +
   	facet_wrap(~ targ_side) +
   	theme_bw() + 
     ggthemes::scale_fill_ptol() +
     scale_x_discrete("condition") +
-  	scale_y_log10("median rt", breaks = c(1,2,4,8,16)) +
-    theme(legend.position = "none") -> p_rt
+  	scale_y_log10("median rt(s)", breaks = c(1,2,4,8,16)) -> p_rt
 ```
 
 ```{r}
 p_acc / p_rt
-ggsave("plots/exp_deadline_acc_rt.png", p_acc / p_rt, width = 8, height = 5)
+ggsave("exp_deadline_acc_rt.png", p_acc/p_rt, width = 8, height = 5)
+
 ```
 
 ### Saccadic Strategy
