@@ -1,9 +1,12 @@
 library(tidyverse)
 
+# how many fixations do we want to take? We use max_fix_n = 6 in the paper
+max_fix_n <- 6
+
 # Read in Acc and RT data
-setwd("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment")
-deadline_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment/data/processedRTandAccData.Rda"))
-reward_dat <- as_tibble(readRDS("C:/Users/Marcin/Documents/GitHub/Reward-Experiment/data/processedRTandAccData.Rda"))
+# setwd("C:/Users/Marcin/Documents/GitHub/Deadline-Experiment")
+deadline_dat <- as_tibble(readRDS("../data/processedRTandAccData.Rda"))
+reward_dat <- as_tibble(readRDS("../data/processedRTandAccData.Rda"))
 
 subjectsToRemove = c(22,19,12)#22 and 19 accuracy on homogenous trials below 50%, 12 RT on homogenous trials over 8s
 reward_dat = (reward_dat[!(reward_dat$subj%in% subjectsToRemove),])
@@ -108,7 +111,7 @@ reward_dat %>%
 	  observer = paste("r", observer, sep = "")) -> reward_dat
 
 bind_rows(deadline_dat, reward_dat) %>%
-	filter(n < 7) %>%
+	filter(n <= max_fix_n) %>%
 	mutate(
 		condition = as_factor(condition),
 		condition = fct_recode(condition, 

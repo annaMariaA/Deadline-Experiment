@@ -18,18 +18,19 @@ knitr::opts_chunk$set(fig.height = 4, fig.align = 'center')
 
 library(brms)
 library(tidyverse)
-
 library(tidybayes)
 library(patchwork)
 library(lmerTest)
 
 rstan::rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
+options(mc.cores = 4)
+#  parallel::detectCores()
 
 # import data
 # source("import_and_tidy_data.R")
   dat_rt_acc <- read_csv("dat_acc_rt.csv")
   dat_fix <- read_csv("dat_fix.csv") %>% filter(n > 1)
+  
 ```
 
 These supplementary materials contain more details of the Bayesian analysis, including power analysis. Please see the source Rmd file for full code. 
@@ -42,7 +43,7 @@ We will first look at descriptive statistics for accuracy and reaction time data
 
 ### Accuracy and Reaction Time
 
-```{r}
+```{r, cache=TRUE}
 dat_rt_acc %>% 
   filter(cd %in% c("long", "brief")) %>%
   mutate(cd = fct_relevel(cd, "long")) %>%
@@ -59,7 +60,7 @@ dat_rt_acc %>%
 
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
 
-```{r}
+```{r, cache=TRUE}
 dat_rt_acc %>% 
   filter(
     cd %in% c("long", "brief"), 
@@ -76,7 +77,7 @@ dat_rt_acc %>%
   	scale_y_log10("median rt(s)", breaks = c(1,2,4,8,16)) -> p_rt
 ```
 
-```{r}
+```{r, cache=TRUE}
 p_acc / p_rt
 ggsave("exp_deadline_acc_rt.png", p_acc/p_rt, width = 8, height = 5)
 
@@ -86,7 +87,7 @@ ggsave("exp_deadline_acc_rt.png", p_acc/p_rt, width = 8, height = 5)
 
 First, we need to merge (join) the fixation and accuracy data, so that we can take only correct target absent trials. We will compute the proportion of fixations to the heterogeneous side of the display for each fixation number, over all trials made by a participant. 
 
-```{r}
+```{r, cache=TRUE}
 dat_fix %>% left_join(dat_rt_acc, 
                       by = c("observer", "cd", "bk", "t")) %>% 
 	filter(
@@ -99,7 +100,7 @@ dat_fix %>% left_join(dat_rt_acc,
 
 Create a facet plot of each individual's strategy.
 
-```{r}
+```{r, cache=TRUE}
 d_strat %>%
 	ggplot(aes(x = n, y = prop_hetero, colour = cd)) + 
   	geom_line() + 
@@ -137,7 +138,7 @@ Summarise data so that we have one strategy score per trial per observer.
 
 Note, as beta distributions are only defined over (0, 1), values of 0 and 1 are impossible. To get around this, we will set any such values to 0.001 and 0.999 respectively.
 
-```{r}
+```{r, cache=TRUE}
 dat_fix %>% 
   left_join(
     dat_rt_acc, 
@@ -153,11 +154,12 @@ dat_fix %>%
     prop_hetero = if_else(prop_hetero > 0.999, 0.999, prop_hetero)) -> d_strat
 ```
 
+  
 ### Define function for plotting model output
 
 I will want to reuse this plotting code, so I will put it in a function here.
 
-```{r}
+```{r, cache=TRUE}
 plot_deadline_predictions <- function(m, title) 
 {
   tibble(cd = c("long", "brief")) %>%
@@ -203,7 +205,7 @@ prior_model <- brm(
 	control = list(adapt_delta = 0.95))
 ```
 
-```{r}
+```{r, cache=TRUE}
 plt_prior <- plot_deadline_predictions(prior_model, "(b) Prior")
 plt_prior
 ```
@@ -233,7 +235,7 @@ power_model <- brm(
 	refresh = 0)
 ```
 
-```{r}
+```{r, cache=TRUE}
 # a function to generate a simlulated dataset.
 sample_data <- function(n_obs, n_trl) 
 {
@@ -260,21 +262,21 @@ sample_data <- function(n_obs, n_trl)
 
 We can now plot these distributions to check that they seem reasonable. 
 
-```{r}
+```{r, cache=TRUE}
 plt_power <- plot_deadline_predictions(power_model, "Power Predictions")
 plt_power
 ```
 
 These corresponds to assuming distributions with the means presented below: 
 
-```{r}
+```{r, cache=TRUE}
 sample_data(15, 32) %>% 
   group_by(cd) %>% 
   summarise(`mean prop. fix hetero.` = mean(prop_hetero), .groups = "drop") %>%
   knitr::kable()
 ```
 
-```{r}
+```{r, cache=TRUE}
 # a function that will the key statistic that we are interested in: 
 # the probability, given the data, that observers were more strategic in the brief condition than the long. 
 get_p_difference <- function(n_obs, n_trls) {
@@ -309,29 +311,29 @@ We now generate multiple (=50) simulated datasets with 15 observers and 32 corre
 
 ```{r runpoweranalysis, cache=TRUE, message=FALSE, warning=FALSE}
   
-d_pwr <- tibble()
-
-for (itr in 1:50) {
-  n_obs = 15
-  n_trls = 32
-  d_pwr <- bind_rows(
-    d_pwr, 
-    tibble(
-      n_obs = n_obs, 
-      n_trls = n_trls, 
-      power = get_p_difference(n_obs, n_trls)))
-}
+# d_pwr <- tibble()
+# 
+# for (itr in 1:50) {
+#   n_obs = 15
+#   n_trls = 32
+#   d_pwr <- bind_rows(
+#     d_pwr, 
+#     tibble(
+#       n_obs = n_obs, 
+#       n_trls = n_trls, 
+#       power = get_p_difference(n_obs, n_trls)))
+# }
 ```
 
 And plot!
 
-```{r}
-d_pwr %>%
-  mutate(n_trls = as.factor(n_trls)) %>% 
-  ggplot(aes(x = power)) + 
-    geom_histogram(bins = 10) + 
-    theme_bw() +
-    scale_x_continuous("p(x>0 | d)")
+```{r, cache=TRUE}
+# d_pwr %>%
+#   mutate(n_trls = as.factor(n_trls)) %>% 
+#   ggplot(aes(x = power)) + 
+#     geom_histogram(bins = 10) + 
+#     theme_bw() +
+#     scale_x_continuous("p(x>0 | d)")
 ```
 
 ## Compute and Plot Posterior
@@ -364,7 +366,7 @@ ggsave(
   height = 2.5)
 ```
 
-```{r}
+```{r, cache=TRUE}
 tibble(cd = c("long", "brief")) %>%
     add_fitted_draws(my_model, re_formula = NA) %>%
 		ungroup() %>%
@@ -392,7 +394,7 @@ We can conclude that $p(x>0 | d) = $ `r pxd[1]`.
 
 ### Accuracy and Reaction Time
 
-```{r}
+```{r, cache=TRUE}
 dat_rt_acc %>% filter(cd %in% c("flat", "reward")) %>%
 	group_by(observer, bk, cd, targ_side) %>%
 	summarise(accuracy = mean(acc), .groups = 'drop') %>%
@@ -406,7 +408,7 @@ dat_rt_acc %>% filter(cd %in% c("flat", "reward")) %>%
 
 After plotting the accuracy data, incorrect trials are removed from all further analysis. 
 
-```{r}
+```{r, cache=TRUE}
 dat_rt_acc %>% filter(cd %in% c("flat", "reward"), acc == 1) %>%
 	group_by(observer, bk, cd, targ_side) %>%
 	summarise(median_rt = median(rt), .groups = 'drop') %>%
@@ -418,7 +420,7 @@ dat_rt_acc %>% filter(cd %in% c("flat", "reward"), acc == 1) %>%
 	scale_y_log10("median rt (s)", breaks = c(1,2,4,8,16))  -> p_rt
 ```
 
-```{r}
+```{r, cache=TRUE}
 p_acc / p_rt
 ggsave("exp_reward_acc_rt.png", p_acc / p_rt + plot_layout(guides = "collect"), width = 8, height = 5)
 ```
@@ -427,7 +429,7 @@ ggsave("exp_reward_acc_rt.png", p_acc / p_rt + plot_layout(guides = "collect"), 
 
 First, we need to merge (join) the fixation and accuracy data, so that we can take only correct target absent trials. We will compute the proportion of fixations to the heterogeneous side of the display for each fixation number, over all trials made by a participant.
 
-```{r}
+```{r, cache=TRUE}
 dat_fix %>% left_join(dat_rt_acc,
                       by = c("observer", "cd", "bk", "t")) %>%
 	filter(
@@ -456,7 +458,7 @@ plt_strat_obs <- d_strat %>%
 We can further summarise the data by creating a strategy measure, which is the proportion of all (2 - 6) fixations made by an observer over all trials. 
 
 ```{r fig.height=6}
-plt_strategy <- d_strat %>%
+d_strat %>%
   group_by(observer, bk, cd) %>%
 	summarise(strategy = mean(prop_hetero)) %>%
 	ggplot(aes(x = bk, y = strategy, fill = cd)) +
@@ -467,7 +469,7 @@ plt_strategy <- d_strat %>%
   facet_wrap(~ cd) +
 	theme_bw() +
 	theme(legend.position = "none",
-		axis.title = element_blank()) +
+		axis.title.x = element_blank()) +
   ggtitle("(a) Empirical") -> plt_strategy
 
 plt_strat_obs + plt_strategy + plot_layout(widths = c(3, 1))
@@ -479,7 +481,7 @@ Summarise data so tha we have one strategy score per trial per observer.
 
 Note, as beta distributions are only defined over (0, 1), values of 0 and 1 are impossible. To get around this, we will set any such values to 0.001 and 0.999 respectively.
 
-```{r}
+```{r, cache=TRUE}
 dat_fix %>% left_join(dat_rt_acc,
                       by = c("observer", "cd", "bk", "t")) %>%
 	filter(
@@ -496,7 +498,7 @@ dat_fix %>% left_join(dat_rt_acc,
     prop_hetero = if_else(prop_hetero == 1, 0.99, prop_hetero))-> d_strat
 ```
 
-```{r}
+```{r, cache=TRUE}
 plot_reward_predictions <- function(m, title) {
   
   tibble(cd = c("initial", "flat", "reward")) %>%
@@ -579,14 +581,14 @@ power_model <- brm(
 
 We can now plot these distributions to check that they seem reasonable. 
 
-```{r}
+```{r, cache=TRUE}
 plt_power <- plot_reward_predictions(power_model, "Power Predictions")
 plt_power
 ```
 
 Next, we write a function to generate a simulated dataset.
 
-```{r}
+```{r, cache=TRUE}
 sample_reward_data <- function(n_obs, n_trl) 
 {
   d_strat %>% 
@@ -612,7 +614,7 @@ sample_reward_data <- function(n_obs, n_trl)
 
 Now we also need a function that will the key statistic that we are interested in: the probability, given the data, that observers were more strategic in the brief condition than the long. 
 
-```{r}
+```{r, cache=TRUE}
 get_p_difference_reward <- function(n_obs, n_trls) {
   
   # simulate some data 
@@ -664,7 +666,7 @@ for (itr in 1:50) {
 
 And plot!
 
-```{r}
+```{r, cache=TRUE}
 d_pwr_reward  %>%
   mutate(n_trls = as.factor(n_trls)) %>%
   ggplot(aes(x = power)) + 
@@ -690,16 +692,16 @@ my_model <- brm(
 	control = list(adapt_delta = 0.95))
 ```
 
-```{r}
+```{r, cache=TRUE}
 summary(my_model)
 ```
 
 
-```{r}
+```{r, cache=TRUE}
 plt_posterior <- plot_reward_predictions(my_model, "Posterior Predictions")
 ```
 
-```{r}
+```{r, cache=TRUE}
 plt_strategy / (plt_prior + plt_posterior) + plot_layout(guides = "collect")
 
  ggsave(
@@ -711,7 +713,7 @@ plt_strategy / (plt_prior + plt_posterior) + plot_layout(guides = "collect")
 
 What is the the probability of a difference > 0, given the data? 
 
-```{r}
+```{r, cache=TRUE}
 tibble(cd = c("initial", "flat", "reward")) %>%
   add_fitted_draws(my_model, re_formula = NA) %>%
 	ungroup() %>%
@@ -809,7 +811,7 @@ The results are consistent with the analysis presented in the paper
 
 I will now look to see what happens to search strategy over time: both on the scale of an individual trial, within and across blocks, and between experimental condition! First, I will fit one model to the data from both experiments.
 
-```{r}
+```{r, cache=TRUE}
 # Code to plot model predictions
 
 my_col <- c("#CC6677", "#4477AA", "#AA4499", "#117733")
@@ -852,7 +854,7 @@ plot_model_predictions <- function(df = dat_m, my_model, rfp = rolling_fix_prop)
 }
 ```
 
-```{r}
+```{r, cache=TRUE}
 # Code to use new factor level codes (i.e., baseline, transfer)
 
 dat_fix %>% 
@@ -874,7 +876,7 @@ dat_fix %>%
     n = as.factor(n)) -> d_strat
 ```
 
-```{r}
+```{r, cache=TRUE}
 # compute rolling averages
 source("prop_rolling_mean.R")
 ```
@@ -919,7 +921,7 @@ saveRDS(m_posterior, "models/my_posterior.model")
 m_posterior <- readRDS("models/my_posterior.model")
 ```
 
-```{r}
+```{r, cache=TRUE}
 summary(m_posterior)
 ```
 
@@ -928,7 +930,7 @@ plot_model_predictions(d_strat, m_posterior, rolling_fix_prop)
 ggsave("plots/timecourse_post.png", width = 8, height = 5)
 ```
 
-```{r}
+```{r, cache=TRUE}
 summary(d_strat)
 
 ```
@@ -969,23 +971,23 @@ m_posterior_drop_bk <- readRDS("models/my_posterior_drop_bk.model")
 
 ```
 
-```{r timecourse-posterior-drop-n}
-m_posterior_drop_n <- brm(
-	data = d_strat,
-	hetero_fix ~ (0 + cd) * bk * ts  + 
-	(ts + n | observer) ,
-	family = "bernoulli",
-	prior = model_priors,
-	chains = 4)
-
-m_posterior_drop_n <- add_criterion(m_posterior_drop_n, c("loo", "waic"))
-
-saveRDS(m_posterior_drop_n, "models/my_posterior_drop_n.model")
+```{r timecourse-posterior-drop-n, cache=TRUE, message=FALSE}
+# m_posterior_drop_n <- brm(
+# 	data = d_strat,
+# 	hetero_fix ~ (0 + cd) * bk * ts  + 
+# 	(ts + n | observer) ,
+# 	family = "bernoulli",
+# 	prior = model_priors,
+# 	chains = 4)
+# 
+# m_posterior_drop_n <- add_criterion(m_posterior_drop_n, c("loo", "waic"))
+# 
+# saveRDS(m_posterior_drop_n, "models/my_posterior_drop_n.model")
 m_posterior_drop_n <- readRDS("models/my_posterior_drop_n.model")
 
 ```
 
-```{r timecourse-posterior-drop-t}
+```{r timecourse-posterior-drop-t, cache=TRUE, message=FALSE}
 m_posterior_drop_t <- brm(
 	data = d_strat,
 	hetero_fix ~ (0 + cd) * (0 + n) * bk + 
@@ -1008,8 +1010,13 @@ mw <- model_weights(
   m_posterior_drop_t,
   m_posterior_drop_cd, 
   m_posterior_drop_n)
+```
 
-# add a count of the number of paremters for the fixed effects
+```{r}
+
+mw <- tibble(model = names(mw), weight = mw)
+
+# add a count of the number of parameters for the fixed effects
 mw$n = c(
   sum(str_count(get_variables(m_posterior), "b_")),
   sum(str_count(get_variables(m_posterior_drop_bk), "b_")),
@@ -1024,34 +1031,34 @@ mw %>% knitr::kable()
 
 # Session Info
 
-```{r}
+```{r, cache=TRUE}
 sessionInfo()
 ```
 
-```{r}
-dat_fix_all_fix %>% left_join(dat_rt_acc, 
-                      by = c("observer", "cd", "bk", "t")) %>% 
-	filter( acc == 1)%>%
-	group_by(targ_side, cd) %>%
-	summarise(max_fix_no = max(n), mean_fix_no= mean(n),mean_duration=mean(duration), .groups = 'drop')%>%
-  knitr::kable("html", digits= 4) %>% kableExtra::kable_styling()->table_means
-```
-#inverse effciency score (IES) RT/proportion correct
-```{r}
-dat_rt_acc %>% 
-  mutate(cd = fct_relevel(cd, "long")) %>%
-	group_by( cd, targ_side,observer) %>% 
-	summarise(accuracy = mean(acc),
-	          rt_median=median(rt),.groups = 'drop') %>%
-  mutate(IES=rt_median/accuracy)%>%
-	ggplot(aes(x = cd, y = IES, fill = fct_rev(cd))) + 
-  	geom_boxplot(alpha = 0.25) +
-  	facet_wrap(~ targ_side) +
-  	theme_bw() + 
-    ggthemes::scale_fill_ptol() +
-    scale_x_discrete("condition") +
-  	scale_y_continuous(limits = c(0, 25), name="Inverse Effciency score(RT/Prop. Correct)") +
-    theme(legend.position = "none") -> IES
-ggsave("plots/inverse_efficiency_score.png", IES, width = 8, height = 5)
+<!-- ```{r, cache=TRUE} -->
+<!-- dat_fix_all_fix %>% left_join(dat_rt_acc,  -->
+<!--                       by = c("observer", "cd", "bk", "t")) %>%  -->
+<!-- 	filter( acc == 1)%>% -->
+<!-- 	group_by(targ_side, cd) %>% -->
+<!-- 	summarise(max_fix_no = max(n), mean_fix_no= mean(n),mean_duration=mean(duration), .groups = 'drop')%>% -->
+<!--   knitr::kable("html", digits= 4) %>% kableExtra::kable_styling()->table_means -->
+<!-- ``` -->
+<!-- #inverse effciency score (IES) RT/proportion correct -->
+<!-- ```{r, cache=TRUE} -->
+<!-- dat_rt_acc %>%  -->
+<!--   mutate(cd = fct_relevel(cd, "long")) %>% -->
+<!-- 	group_by( cd, targ_side,observer) %>%  -->
+<!-- 	summarise(accuracy = mean(acc), -->
+<!-- 	          rt_median=median(rt),.groups = 'drop') %>% -->
+<!--   mutate(IES=rt_median/accuracy)%>% -->
+<!-- 	ggplot(aes(x = cd, y = IES, fill = fct_rev(cd))) +  -->
+<!--   	geom_boxplot(alpha = 0.25) + -->
+<!--   	facet_wrap(~ targ_side) + -->
+<!--   	theme_bw() +  -->
+<!--     ggthemes::scale_fill_ptol() + -->
+<!--     scale_x_discrete("condition") + -->
+<!--   	scale_y_continuous(limits = c(0, 25), name="Inverse Effciency score(RT/Prop. Correct)") + -->
+<!--     theme(legend.position = "none") -> IES -->
+<!-- ggsave("plots/inverse_efficiency_score.png", IES, width = 8, height = 5) -->
 
-```
+<!-- ``` -->
